@@ -1,0 +1,129 @@
+You are a senior product designer building a mobile-first web app called CompCal. CompCal is a productivity accountability app where users check into calendar events, get verified by AI-powered webcam snapshots that they're focused on their task, and see their progress visualized as climbing a mountain. Friends see each other's climbers hiking up their own peaks in real time. The highest climber each day wins.
+
+AESTHETIC REFERENCE: Studio Ghibli meets Apple Fitness. Warm, painterly, confident. Not corporate fintech. Not gamer-aggressive. Calm ambient energy with moments of delight when a climber advances. Think Alto's Odyssey, Monument Valley, and Linear had a baby.
+
+DESIGN SYSTEM (LOCKED):
+
+Palette — "Alpine Dawn":
+- Background sky (top): soft peach #F4D8BA
+- Background sky (bottom): warm cream #FBF2E4
+- Mountain fill: deep sage #4A6B54
+- Snow caps: off-white #FDFBF7
+- Primary accent: terracotta #C66B52 (user's own climber, active states)
+- Secondary: dusty rose #D99A8F (friends' climbers)
+- Text primary: deep ink #1F2028
+- Text secondary: warm gray #746B62
+- Success green (verified focus): moss #6B8E5A
+- Distraction flag: soft coral #E89A7F (never red)
+
+Typography:
+- Headings and time displays: Instrument Serif
+- Body: Inter
+- Numbers, timers, scores: JetBrains Mono
+- Type scale (use ONLY): 56px hero serif / 32px h1 serif / 20px h2 sans semibold / 16px body / 13px caption / 14px mono / 28px mono timer
+
+Spacing: 4-point system. Allowed: 4, 8, 12, 16, 24, 32, 48, 64, 96.
+
+Radius: 16px for cards, 999px for circular buttons/avatars, 8px for small inputs. Nothing else.
+
+Shadow: ONE style for cards. 0 2px 8px rgba(31, 32, 40, 0.06), 0 12px 32px rgba(31, 32, 40, 0.04).
+
+Viewport: Mobile-first, 430px max width. Center on desktop.
+
+SCREENS TO PRODUCE (five total):
+
+1. Home / Today screen:
+   - Top section: today's date in serif, small subtitle "ready to climb?"
+   - Today's calendar events as cards, each with event name, time, and a "Check In" primary button
+   - Empty state card if no events: "add an event to your calendar to start climbing"
+   - Bottom tab bar: Today (active), Mountain, Friends
+
+2. Active check-in / Mountain screen (HERO SCREEN):
+   - Full-bleed mountain illustration as background, SVG-generated in sage on cream gradient sky
+   - User's climber avatar (terracotta circle with initial or photo) positioned on the mountain path at current progress height
+   - Mountain has visible trail markers at 25%, 50%, 75%, 100% (summit)
+   - Top HUD: task name in serif 20px, time remaining or elapsed in mono 28px
+   - Floating bottom card: webcam thumbnail preview (small, 80x60px) + focus score as mono number (e.g., "97% focused") + last check indicator (moss dot = verified, coral dot = distracted)
+   - Every 5-10 min when a snap happens, show a subtle toast at top: "Focus check ✓" or "Focus check ✗ — put the phone down" in caption text
+   - When climber advances, small animation: climber moves up trail with 600ms ease-out
+   - Top-right: pause button (ghost style)
+
+3. Summit / Task complete screen:
+   - Full screen takeover, mountain illustration with climber at peak, sun rising behind
+   - Hero text in serif 56px: "summited" in terracotta
+   - Below: task name, total focused time in mono 28px, focus score percentage
+   - Share button (secondary): "share to friends' mountains"
+   - Primary button: "back to today"
+
+4. Friends / Leaderboard screen:
+   - Three small mountains side by side at top, each with a tiny climber at their respective heights (this is the "at-a-glance" view of who's where right now)
+   - Below: scrollable list of friends
+   - Each row: avatar (circle, dusty rose border if currently climbing), name, current task (italic caption), focused time today in mono, altitude as percentage
+   - Active climbers at top, completed climbers below, idle friends last
+   - Time toggle pills: Today / This Week / This Month
+   - User's own row highlighted with cream background and terracotta left border
+
+5. Roast / Distraction intervention screen (the demo moment):
+   - Appears as a modal overlay when user is flagged distracted 3+ times
+   - Dark warm background #2B2028 with grain texture
+   - Hero text in serif 32px: "caught slacking"
+   - Below: AI-generated roast in serif 20px italic, centered, max 2 lines (e.g., "put the phone down, soldier. your ancestors didn't survive wars for you to scroll tiktok.")
+   - Small caption: "shared with [friend names]" in mono
+   - Primary button: "lock back in"
+   - Ghost button: "take a break"
+   - Subtle audio wave icon at top-right if ElevenLabs TTS is playing the roast
+
+COMPONENTS TO DESIGN:
+
+Mountain SVG: one master SVG file with:
+- Layered path (foreground ridge, midground mountain, background peaks)
+- Sage and cream palette
+- Trail visible as dashed line going up
+- Progress-based positions defined as percentage points along the trail
+- Must animate smoothly between positions
+
+Climber avatar: 
+- Circular 32px default, 48px on own mountain, 24px on friends' mountains
+- Border in accent color (terracotta for user, rose for friends)
+- Tiny trail of footprints behind climber showing last 15% of progress
+
+Focus check toast:
+- Slides in from top, auto-dismisses after 2.5s
+- Moss color for verified, coral for distracted
+- Small icon (checkmark or X) in mono
+
+Webcam preview:
+- 80x60px floating card, 12px radius, subtle shadow
+- Live video feed when active, frozen frame when snap is being processed
+- Small pulsing dot when camera is active
+
+ANIMATION RULES:
+- Climber advance: 600ms ease-out, moves along SVG path
+- Screen transitions: 300ms ease-out fade + 12px Y slide
+- Toast: 200ms slide in, 300ms slide out
+- Summit celebration: staggered reveal, mountain → climber → text → score, 1.5s total
+- Roast appearance: background fade (400ms), text typewriter (40ms per char), audio starts after text completes
+- Never use bouncing, spring, or overshoot animations
+
+ABSOLUTELY FORBIDDEN:
+- No purple anywhere
+- No sparkle emojis, no decorative emojis
+- No gamer-aggressive UI (no neon, no dark mode default, no "LEVEL UP!!" popups)
+- No shame language in roasts beyond behavior (never attack identity or appearance)
+- No red for distractions (use soft coral)
+- No circular progress rings (too Apple Fitness)
+- No pie charts or bar charts for focus data
+- No stock illustration avatars
+- No "streak flame" emoji or icons
+- No gradients on buttons
+- No hover bounce, no card lift, no rotation
+- No "Welcome back!" greetings
+
+COPY RULES:
+- All roasts: direct, military drill-sergeant style, focus on behavior only, under 20 words
+- Progress language is always positive: "climbing", "advancing", "summited", never "failed" or "behind"
+- Friends screen uses geographic language: "altitude", "on the trail", "at base camp"
+- Focus scores are shown as percentages, never as letter grades
+
+OUTPUT:
+Generate all five screens in mobile-first fidelity. Include at least three states for the mountain screen (early climb at 20%, mid-climb at 55%, summit at 100%). Show a friends screen populated with 5 realistic climber states (3 actively climbing at different heights, 1 summited, 1 idle). Show the roast modal with a real example roast.
