@@ -1,4 +1,4 @@
-import { startOfWeek, addDays, startOfDay } from 'date-fns';
+import { startOfWeek, addDays, startOfDay, endOfDay } from 'date-fns';
 import type { CalendarEvent } from '../data/calendarFixtures';
 
 interface GoogleEvent {
@@ -36,14 +36,22 @@ export async function fetchMyEventsThisWeek(
   const data = await res.json();
   const items: GoogleEvent[] = data.items ?? [];
 
-  return items
-    .filter((e) => e.start.dateTime)
-    .map((e) => ({
+  return items.map((e): CalendarEvent => {
+    const allDay = !e.start.dateTime;
+    const start = allDay
+      ? startOfDay(new Date(e.start.date!))
+      : new Date(e.start.dateTime!);
+    const end = allDay
+      ? endOfDay(new Date(e.start.date!))
+      : new Date(e.end.dateTime!);
+    return {
       id: e.id,
       title: e.summary ?? '(no title)',
-      start: new Date(e.start.dateTime!),
-      end: new Date(e.end.dateTime!),
+      start,
+      end,
       ownerId: 'me' as const,
       ownerName: 'You',
-    }));
+      allDay,
+    };
+  });
 }

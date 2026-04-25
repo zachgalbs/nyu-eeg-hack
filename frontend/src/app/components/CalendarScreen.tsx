@@ -24,7 +24,7 @@ function formatRange(e: CalendarEvent) {
 }
 
 function isHappening(e: CalendarEvent, now: Date) {
-  return e.start <= now && now <= e.end;
+  return !e.allDay && e.start <= now && now <= e.end;
 }
 
 export function CalendarScreen() {
@@ -80,8 +80,10 @@ export function CalendarScreen() {
   // Today view data
   const todayAllEvents = eventsForDay(today, allEvents);
   const todayMine = todayAllEvents.filter((e) => e.ownerId === 'me');
+  const todayMineTimed = todayMine.filter((e) => !e.allDay);
+  const todayMineAllDay = todayMine.filter((e) => e.allDay);
   const todayOthers = todayAllEvents.filter((e) => e.ownerId !== 'me');
-  const activeEvent = todayMine.find((e) => isHappening(e, now)) ?? null;
+  const activeEvent = todayMineTimed.find((e) => isHappening(e, now)) ?? null;
 
   // Week view data
   const weekDays = useMemo(
@@ -209,7 +211,7 @@ export function CalendarScreen() {
                 </div>
               )}
 
-              {todayMine.filter((e) => !isHappening(e, now)).map((event) => {
+              {todayMineTimed.filter((e) => !isHappening(e, now)).map((event) => {
                 const upcoming = event.start > now;
                 return (
                   <div
@@ -232,10 +234,35 @@ export function CalendarScreen() {
                 );
               })}
 
-              {!activeEvent && todayMine.length > 0 && (
+              {!activeEvent && todayMineTimed.length > 0 && (
                 <p className="pt-1 text-center text-warm-gray" style={{ fontSize: '13px' }}>
                   No session in progress right now.
                 </p>
+              )}
+
+              {todayMineAllDay.length > 0 && (
+                <div className="mt-2">
+                  <p className="mb-2 text-warm-gray" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>All day</p>
+                  <div className="space-y-2">
+                    {todayMineAllDay.map((event) => (
+                      <div
+                        key={event.id}
+                        className="border border-border bg-card p-4 flex items-center justify-between gap-3"
+                        style={{ borderRadius: '16px' }}
+                      >
+                        <span className="text-ink" style={{ fontSize: '15px', fontWeight: 600 }}>{event.title}</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/mountain/${event.id}`, { state: { title: event.title } })}
+                          className="shrink-0 rounded-full bg-primary px-4 py-1.5 text-primary-foreground transition-opacity hover:opacity-90"
+                          style={{ fontSize: '13px', fontWeight: 600 }}
+                        >
+                          Check in
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {todayOthers.length > 0 && (
