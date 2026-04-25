@@ -19,9 +19,7 @@ import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import {
   getBuddyCommitment,
-  getPrefs,
   saveSessionOutcome,
-  updatePrefs,
 } from "../../lib/compcal-state";
 import { getSortedFriendPresence } from "../../lib/friends-presence";
 import {
@@ -86,7 +84,6 @@ export function MountainScreen() {
   const [activeRoast, setActiveRoast] = useState<ActiveRoast | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
-  const [prefs, setPrefs] = useState(() => getPrefs());
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
   const [artReady, setArtReady] = useState(false);
@@ -188,7 +185,7 @@ export function MountainScreen() {
   ]);
 
   useEffect(() => {
-    if (isPaused || !hasCheckedIn || !prefs.focusChecksEnabled) return;
+    if (isPaused || !hasCheckedIn) return;
     const focusCheckInterval = window.setInterval(() => {
       const isDistracted = Math.random() < 0.15;
       const checkResult = isDistracted ? 'distracted' : 'verified';
@@ -199,10 +196,10 @@ export function MountainScreen() {
 
       if (isDistracted) {
         setDistractedChecksTotal((prev) => prev + 1);
-        setFocusScore((prev) => Math.max(70, prev - (prefs.lowPressureMode ? 1 : 3)));
+        setFocusScore((prev) => Math.max(70, prev - 3));
         setDistractionCount((prev) => {
           const newCount = prev + 1;
-          if (!prefs.lowPressureMode && newCount >= 3) {
+          if (newCount >= 3) {
             void (async () => {
               const roastText = await generateRoast({
                 userName: "You",
@@ -224,12 +221,7 @@ export function MountainScreen() {
     }, 10000);
 
     return () => window.clearInterval(focusCheckInterval);
-  }, [isPaused, hasCheckedIn, prefs.focusChecksEnabled, prefs.lowPressureMode, elapsedSeconds, event.name]);
-
-  const toggleFocusChecks = () => {
-    const next = updatePrefs({ focusChecksEnabled: !prefs.focusChecksEnabled });
-    setPrefs(next);
-  };
+  }, [isPaused, hasCheckedIn, elapsedSeconds, event.name]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
   const blockLabel =
@@ -712,7 +704,7 @@ export function MountainScreen() {
                         <div
                           className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
                         />
-                        {prefs.focusChecksEnabled ? (isPaused ? "PAUSED" : "LIVE") : "CHECKS OFF"}
+                        {isPaused ? "PAUSED" : "LIVE"}
                       </div>
                     </div>
 
@@ -728,13 +720,6 @@ export function MountainScreen() {
                           Throw unlocks when you are more focused than {throwTarget.name}.
                         </p>
                       ) : null}
-                      <button
-                        type="button"
-                        onClick={toggleFocusChecks}
-                        className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-foreground transition-opacity hover:opacity-80"
-                      >
-                        {prefs.focusChecksEnabled ? "Turn checks off" : "Turn checks on"}
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -815,7 +800,7 @@ export function MountainScreen() {
         )}
 
         {showToast && (
-          <FocusCheckToast type={toastType} lowPressureMode={prefs.lowPressureMode} />
+          <FocusCheckToast type={toastType} lowPressureMode={false} />
         )}
       </div>
 
