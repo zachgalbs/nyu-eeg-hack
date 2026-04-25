@@ -186,8 +186,14 @@ export function MountainScreen() {
 
   return (
     <>
-      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
-      <canvas ref={canvasRef} className="hidden" />
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ position: 'fixed', top: -9999, left: -9999, width: 1, height: 1 }}
+      />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       <div className="fixed inset-0 z-30 overflow-hidden bg-background-solid">
         <img
