@@ -311,7 +311,7 @@ We care about this problem because we are inside the target user group: students
 
 ## Team
 
-- Candy Xie - UI, frontend systems, storytelling
+- Candy Xie - UI, frontend 
 - Travis Sim - backend
 - Andy Li - design, pitch
 - Zachary Galbraith - calendar/auth integration, backend yuh
