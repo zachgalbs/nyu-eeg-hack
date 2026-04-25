@@ -7,6 +7,10 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000'
 
+  // Pass invite token through OAuth state so callback can auto-accept
+  const inviteToken = req.query.invite_token as string | undefined
+  const state = inviteToken ? `invite:${inviteToken}` : undefined
+
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID!,
     redirect_uri: `${base}/api/auth/callback`,
@@ -19,6 +23,7 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     ].join(' '),
     access_type: 'offline',
     prompt: 'consent',
+    ...(state ? { state } : {}),
   })
 
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
