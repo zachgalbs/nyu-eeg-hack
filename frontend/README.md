@@ -45,7 +45,7 @@ problem is not knowledge, but staying with one planned task long enough to finis
 
 ### Prototype / mocked today
 
-- Calendar data source uses fixtures (not Google OAuth sync yet).
+- Calendar UI currently renders fixture data by default; Google OAuth + Calendar API routes exist but are not fully wired as the primary event source in this frontend flow yet.
 - Focus checks are simulated events (no camera capture in this prototype).
 - Study assistant answers are canned text, not a production LLM backend.
 
