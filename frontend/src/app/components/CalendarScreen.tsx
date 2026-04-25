@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   addDays,
@@ -11,8 +11,11 @@ import {
   coClimbingNames,
   eventsForDay,
   getCalendarFixture,
+  getFriendFixtures,
   type CalendarEvent,
 } from '../../data/calendarFixtures';
+import { getGoogleToken } from '../../lib/auth';
+import { fetchMyEventsThisWeek, AuthError } from '../../lib/googleCalendar';
 
 function formatRange(e: CalendarEvent) {
   return `${format(e.start, 'h:mm a')} – ${format(e.end, 'h:mm a')}`;
@@ -21,10 +24,56 @@ function formatRange(e: CalendarEvent) {
 export function CalendarScreen() {
   const navigate = useNavigate();
   const [selected, setSelected] = useState(() => startOfDay(new Date()));
-  const allEvents = useMemo(() => getCalendarFixture(selected), [selected]);
+  const token = getGoogleToken();
 
-  const weekStart = startOfWeek(startOfDay(selected), { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekStart = useMemo(
+    () => startOfWeek(startOfDay(selected), { weekStartsOn: 1 }),
+    [selected],
+  );
+  const weekKey = weekStart.toISOString();
+
+  const fixtureMyEvents = useMemo(
+    () => getCalendarFixture(selected).filter((e) => e.ownerId === 'me'),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [weekKey],
+  );
+
+  const [myEvents, setMyEvents] = useState<CalendarEvent[]>(fixtureMyEvents);
+  const [loading, setLoading] = useState(!!token);
+  const [authError, setAuthError] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    setAuthError(false);
+    fetchMyEventsThisWeek(token, selected)
+      .then((events) => {
+        setMyEvents(events);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (err instanceof AuthError) {
+          setAuthError(true);
+        } else {
+          setMyEvents(fixtureMyEvents);
+        }
+        setLoading(false);
+      });
+    // re-run only when the week changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weekKey]);
+
+  const friendEvents = useMemo(() => getFriendFixtures(selected), [weekKey]);
+  const allEvents = useMemo(
+    () => [...myEvents, ...friendEvents],
+    [myEvents, friendEvents],
+  );
+
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekKey],
+  );
+
   const dayEvents = eventsForDay(selected, allEvents);
   const mine = dayEvents.filter((e) => e.ownerId === 'me');
   const others = dayEvents.filter((e) => e.ownerId !== 'me');
@@ -45,6 +94,52 @@ export function CalendarScreen() {
           against a scoreboard.
         </p>
       </header>
+
+      {!token && (
+        <div
+          className="mb-6 flex items-start gap-4 border border-terracotta/40 bg-card p-4"
+          style={{ borderRadius: '14px' }}
+        >
+          <div className="flex-1">
+            <p className="mb-1 font-semibold text-ink" style={{ fontSize: '14px' }}>
+              Connect Google Calendar
+            </p>
+            <p className="text-warm-gray" style={{ fontSize: '13px' }}>
+              See your real events below — demo data shown for now.
+            </p>
+          </div>
+          <a
+            href="/api/auth/login"
+            className="shrink-0 rounded-full bg-primary px-4 py-2 text-primary-foreground transition-opacity hover:opacity-90"
+            style={{ fontSize: '13px', fontWeight: 600 }}
+          >
+            Connect
+          </a>
+        </div>
+      )}
+
+      {authError && (
+        <div
+          className="mb-6 flex items-start gap-4 border border-coral/40 bg-card p-4"
+          style={{ borderRadius: '14px' }}
+        >
+          <div className="flex-1">
+            <p className="mb-1 font-semibold text-ink" style={{ fontSize: '14px' }}>
+              Session expired
+            </p>
+            <p className="text-warm-gray" style={{ fontSize: '13px' }}>
+              Reconnect to sync your calendar.
+            </p>
+          </div>
+          <a
+            href="/api/auth/login"
+            className="shrink-0 rounded-full bg-primary px-4 py-2 text-primary-foreground transition-opacity hover:opacity-90"
+            style={{ fontSize: '13px', fontWeight: 600 }}
+          >
+            Reconnect
+          </a>
+        </div>
+      )}
 
       <div className="mb-8 lg:grid lg:grid-cols-[minmax(0,280px)_1fr] lg:gap-10">
         <div>
@@ -94,7 +189,21 @@ export function CalendarScreen() {
             {format(selected, 'EEEE, MMMM d')}
           </h2>
 
-          {mine.length === 0 && others.length === 0 ? (
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2].map((n) => (
+                <div
+                  key={n}
+                  className="animate-pulse border border-border bg-card p-5"
+                  style={{ borderRadius: '16px', boxShadow: 'var(--shadow-card)' }}
+                >
+                  <div className="mb-2 h-5 w-3/5 rounded bg-mountain/30" />
+                  <div className="mb-4 h-3 w-2/5 rounded bg-mountain/20" />
+                  <div className="h-10 rounded-full bg-mountain/20" />
+                </div>
+              ))}
+            </div>
+          ) : mine.length === 0 && others.length === 0 ? (
             <div
               className="border border-border bg-card p-8 text-center"
               style={{ borderRadius: '16px', boxShadow: 'var(--shadow-card)' }}

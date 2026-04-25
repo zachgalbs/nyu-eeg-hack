@@ -91,6 +91,10 @@ export function getCalendarFixture(weekContaining: Date = new Date()): CalendarE
   ];
 }
 
+export function getFriendFixtures(weekContaining: Date = new Date()): CalendarEvent[] {
+  return getCalendarFixture(weekContaining).filter((e) => e.ownerId !== 'me');
+}
+
 export function eventsForDay(day: Date, all: CalendarEvent[]): CalendarEvent[] {
   const start = startOfDay(day);
   const end = addDays(start, 1);
