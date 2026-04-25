@@ -39,7 +39,7 @@ const TERRAIN_STEPS: [number, number][] = [
 // Compute cat position ON the terrain surface with slope angle
 export function getTerrainPosition(progress: number) {
   const p = Math.max(0, Math.min(100, progress));
-  const startX = 4;
+  const startX = 15;
   const endX = 92;
   const catX = startX + (p / 100) * (endX - startX);
 
