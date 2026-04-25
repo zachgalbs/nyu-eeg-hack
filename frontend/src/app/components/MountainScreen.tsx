@@ -63,7 +63,7 @@ export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const navState = (location.state ?? null) as { title?: string; duration?: number } | null;
+  const navState = (location.state ?? null) as { title?: string; duration?: number; playMeetUp?: boolean } | null;
   const eventKey = eventId ?? "active";
   const fallbackEvent = eventData[eventKey] ?? eventData.active;
   const event = {
@@ -101,6 +101,8 @@ export function MountainScreen() {
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
   const [snowballMode, setSnowballMode] = useState<'throw' | 'hit' | null>(null);
   const snowballVideoRef = useRef<HTMLVideoElement>(null);
+  const [meetUpActive, setMeetUpActive] = useState<boolean>(() => Boolean(navState?.playMeetUp));
+  const meetUpVideoRef = useRef<HTMLVideoElement>(null);
   const [realFriends, setRealFriends] = useState<FriendPresence[]>([]);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
@@ -149,6 +151,15 @@ export function MountainScreen() {
     v.load();
     v.play().catch(() => {});
   }, [snowballMode]);
+
+  useEffect(() => {
+    if (!meetUpActive) return;
+    const v = meetUpVideoRef.current;
+    if (!v) return;
+    v.currentTime = 0;
+    v.load();
+    v.play().catch(() => setMeetUpActive(false));
+  }, [meetUpActive]);
 
   useEffect(() => {
     let cancelled = false;
@@ -315,12 +326,12 @@ export function MountainScreen() {
 
   // Hide the UI immediately when an overlay animation (snowball / break transitions) plays
   useEffect(() => {
-    const animationActive = snowballMode !== null || bgMode === 'going_to_break' || bgMode === 'going_from_break';
+    const animationActive = snowballMode !== null || bgMode === 'going_to_break' || bgMode === 'going_from_break' || meetUpActive;
     if (animationActive) {
       setUiVisible(false);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     }
-  }, [snowballMode, bgMode]);
+  }, [snowballMode, bgMode, meetUpActive]);
 
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
@@ -576,6 +587,26 @@ export function MountainScreen() {
         playsInline
         onEnded={() => setSnowballMode(null)}
       />
+      {meetUpActive && (
+        <div className="fixed inset-0 z-[65] bg-black">
+          <video
+            ref={meetUpVideoRef}
+            src="/media/meeting_with_friends.mp4"
+            className="absolute inset-0 h-full w-full object-cover"
+            playsInline
+            autoPlay
+            onEnded={() => setMeetUpActive(false)}
+            onError={() => setMeetUpActive(false)}
+          />
+          <button
+            type="button"
+            onClick={() => setMeetUpActive(false)}
+            className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1 text-xs text-white backdrop-blur hover:bg-white/25"
+          >
+            Skip
+          </button>
+        </div>
+      )}
       <div className={`fixed inset-0 z-30 overflow-y-auto bg-background-solid ${!uiVisible ? "cursor-none" : ""}`}>
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}

@@ -1,15 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { format, startOfDay } from 'date-fns';
 import { eventsForDay, coClimbingNames, type CalendarEvent } from '../../data/calendarFixtures';
 import { getWeeklyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
 import { getGoogleToken } from '../../lib/auth';
 import { fetchMyEventsThisWeek, AuthError } from '../../lib/googleCalendar';
-
-type PendingNavigate = {
-  path: string;
-  state: { title: string; duration: number };
-};
 
 function formatRange(e: CalendarEvent) {
   return `${format(e.start, 'h:mm a')} – ${format(e.end, 'h:mm a')}`;
@@ -24,32 +19,9 @@ export function CalendarScreen() {
   const today = useMemo(() => startOfDay(new Date()), []);
   const token = getGoogleToken();
 
-  const [pendingNavigate, setPendingNavigate] = useState<PendingNavigate | null>(null);
-  const meetVideoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (!pendingNavigate) return;
-    const v = meetVideoRef.current;
-    if (!v) return;
-    v.currentTime = 0;
-    v.play().catch(() => {
-      // If autoplay is blocked, skip straight to the destination
-      navigate(pendingNavigate.path, { state: pendingNavigate.state });
-      setPendingNavigate(null);
-    });
-  }, [pendingNavigate, navigate]);
-
-  const finishMeetUp = () => {
-    if (!pendingNavigate) return;
-    const target = pendingNavigate;
-    setPendingNavigate(null);
-    navigate(target.path, { state: target.state });
-  };
-
   const startSession = (event: CalendarEvent) => {
-    setPendingNavigate({
-      path: `/mountain/${event.id}`,
-      state: { title: event.title, duration: durationMinutes(event) },
+    navigate(`/mountain/${event.id}`, {
+      state: { title: event.title, duration: durationMinutes(event), playMeetUp: true },
     });
   };
 
@@ -138,26 +110,6 @@ export function CalendarScreen() {
 
   return (
     <div className="px-4 pb-6 pt-10 sm:px-6">
-      {pendingNavigate && (
-        <div className="fixed inset-0 z-[70] bg-black">
-          <video
-            ref={meetVideoRef}
-            src="/media/meeting_with_friends.mp4"
-            className="absolute inset-0 h-full w-full object-cover"
-            playsInline
-            autoPlay
-            onEnded={finishMeetUp}
-            onError={finishMeetUp}
-          />
-          <button
-            type="button"
-            onClick={finishMeetUp}
-            className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1 text-xs text-white backdrop-blur hover:bg-white/25"
-          >
-            Skip
-          </button>
-        </div>
-      )}
       <header className="mb-6">
         <h1 className="mb-1 text-ink" style={{ fontFamily: 'var(--font-serif)', fontSize: '32px' }}>
           Calendar
