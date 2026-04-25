@@ -1,15 +1,19 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   Pause,
   Play,
   ShieldCheck,
   HandHeart,
+  LogOut,
+  Users,
+  X,
   Flag,
   Timer,
   Trophy,
 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
+import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
 import { StudyAssistantPanel } from "./StudyAssistantPanel";
@@ -20,6 +24,7 @@ import {
   saveSessionOutcome,
   updatePrefs,
 } from "../../lib/compcal-state";
+import { getSortedFriendPresence } from "../../lib/friends-presence";
 
 const eventData: Record<string, { name: string; duration: number }> = {
   '1': { name: "Deep Work: Design System", duration: 120 },
@@ -59,6 +64,7 @@ export function MountainScreen() {
   const [distractedChecksTotal, setDistractedChecksTotal] = useState(0);
   const [showRoast, setShowRoast] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [prefs, setPrefs] = useState(() => getPrefs());
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
@@ -188,6 +194,44 @@ export function MountainScreen() {
       state: progress >= 98 ? "done" : "upcoming",
     },
   ] as const;
+  const friendPresence = useMemo(
+    () => getSortedFriendPresence().filter((friend) => !friend.isUser),
+    []
+  );
+  const activeFriends = friendPresence.filter((friend) => friend.status === "climbing");
+  const stripFriends = activeFriends.slice(0, 4);
+  const overflowActiveCount = Math.max(0, activeFriends.length - stripFriends.length);
+  const canExit = hasCheckedIn && elapsedSeconds > 0;
+
+  const exitSession = () => {
+    if (!canExit) {
+      navigate("/calendar");
+      return;
+    }
+    const confirmed = window.confirm(
+      "Exit this session now? Your in-progress climb will be saved as a partial session."
+    );
+    if (!confirmed) return;
+
+    const completedMinutes = Math.max(
+      1,
+      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
+    );
+    saveSessionOutcome({
+      id: `${eventKey}-partial-${Date.now()}`,
+      eventId: eventKey,
+      eventTitle: event.name,
+      plannedMinutes: event.duration,
+      completedMinutes,
+      focusScore,
+      distractedChecks: distractedChecksTotal,
+      keptCommitment: false,
+      buddyId: buddyCommitment?.buddyId,
+      buddyName: buddyCommitment?.buddyName,
+      completedAt: new Date().toISOString(),
+    });
+    navigate("/calendar");
+  };
 
   return (
     <>
@@ -300,8 +344,59 @@ export function MountainScreen() {
                   Buddy check-in active with {buddyCommitment.buddyName}.
                 </p>
               ) : null}
+              <div className="mt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFriendsPanelOpen(true)}
+                  className="flex min-w-0 items-center gap-2 rounded-full border border-border bg-background-solid/55 px-2.5 py-1 text-[11px] text-foreground transition-opacity hover:opacity-85"
+                >
+                  <span className="inline-flex -space-x-1">
+                    {stripFriends.map((friend) => (
+                      <span
+                        key={friend.id}
+                        className="flex h-5 w-5 items-center justify-center rounded-full border border-card bg-card text-[9px] font-semibold text-ink"
+                      >
+                        {friend.name.charAt(0)}
+                      </span>
+                    ))}
+                  </span>
+                  <span>
+                    {activeFriends.length > 0
+                      ? `${activeFriends.length} climbing`
+                      : "No active climbers"}
+                  </span>
+                  {overflowActiveCount > 0 ? <span>+{overflowActiveCount}</span> : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate("/friends")}
+                  className="rounded-full border border-border bg-background-solid/55 px-2.5 py-1 text-[11px] text-foreground transition-opacity hover:opacity-85"
+                >
+                  Full list
+                </button>
+              </div>
             </div>
             <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setFriendsPanelOpen(true)}
+                className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
+                aria-label="Open friends panel"
+                style={{ fontSize: "12px", fontWeight: 600 }}
+              >
+                <Users className="h-4 w-4" strokeWidth={2} />
+                Friends
+              </button>
+              <button
+                type="button"
+                onClick={exitSession}
+                className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
+                aria-label="Exit session"
+                style={{ fontSize: "12px", fontWeight: 600 }}
+              >
+                <LogOut className="h-4 w-4" strokeWidth={2} />
+                Exit
+              </button>
               <button
                 type="button"
                 onClick={() => setIsPaused((p) => !p)}
@@ -328,7 +423,7 @@ export function MountainScreen() {
           </div>
         </div>
 
-        <div className="absolute bottom-24 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:left-6 sm:right-6">
+        <div className="absolute bottom-36 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:left-6 sm:right-6">
           <div className="flex items-center gap-4">
             <div
               className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
@@ -367,7 +462,7 @@ export function MountainScreen() {
           </div>
         </div>
 
-        <div className="absolute bottom-44 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md sm:left-6 sm:right-6">
+        <div className="absolute bottom-56 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md sm:left-6 sm:right-6">
           <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">Timeline</p>
           <div className="grid grid-cols-3 gap-2">
             {timeline.map(({ id, label, Icon, state }) => (
@@ -396,7 +491,7 @@ export function MountainScreen() {
           </div>
         </div>
 
-        <div className="absolute bottom-2 left-4 right-4 z-10 mx-auto max-w-6xl rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md sm:left-6 sm:right-6">
+        <div className="absolute bottom-20 left-4 right-4 z-10 mx-auto max-w-6xl rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md sm:left-6 sm:right-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-foreground/90">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -411,6 +506,77 @@ export function MountainScreen() {
             </button>
           </div>
         </div>
+
+        {friendsPanelOpen && (
+          <div className="absolute inset-0 z-30 flex items-end">
+            <button
+              type="button"
+              onClick={() => setFriendsPanelOpen(false)}
+              className="absolute inset-0 bg-ink/30"
+              aria-label="Close friends panel"
+            />
+            <div className="relative z-10 w-full rounded-t-2xl border border-border border-b-0 bg-card px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[var(--shadow-card)] sm:px-6">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Friends climbing</p>
+                  <p className="text-xs text-warm-gray">
+                    {activeFriends.length} active · {friendPresence.length} total
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFriendsPanelOpen(false)}
+                  className="rounded-full border border-border bg-background-solid/60 p-1.5 text-warm-gray transition-opacity hover:opacity-80"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                {friendPresence.map((friend) => (
+                  <li
+                    key={friend.id}
+                    className="flex items-center gap-3 rounded-xl border border-border bg-background-solid/45 px-3 py-2"
+                  >
+                    <ClimberAvatar
+                      name={friend.name}
+                      size={30}
+                      color={friend.status === "climbing" ? "#6bc49a" : "#9aa8b4"}
+                      isActive={friend.status === "climbing"}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-foreground">{friend.name}</p>
+                      <p className="truncate text-[11px] text-warm-gray">
+                        {friend.currentTask ?? "No active block"}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-[11px] ${
+                        friend.status === "climbing"
+                          ? "text-moss"
+                          : friend.status === "summited"
+                            ? "text-terracotta"
+                            : "text-warm-gray"
+                      }`}
+                    >
+                      {friend.status === "climbing"
+                        ? "Climbing"
+                        : friend.status === "summited"
+                          ? "Summited"
+                          : "Idle"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={() => navigate("/friends")}
+                className="mt-3 w-full rounded-full border border-border bg-background-solid/65 py-2 text-sm font-semibold text-foreground transition-opacity hover:opacity-85"
+              >
+                Open full friends screen
+              </button>
+            </div>
+          </div>
+        )}
 
         {showToast && (
           <FocusCheckToast type={toastType} lowPressureMode={prefs.lowPressureMode} />

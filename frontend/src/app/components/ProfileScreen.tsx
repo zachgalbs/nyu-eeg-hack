@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router";
 import { ChevronRight, Bell, UserPen, HelpCircle, LogOut, ShieldCheck } from "lucide-react";
 import { addDays, format, startOfDay, startOfWeek } from "date-fns";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { getPrefs, getWeeklyCommitmentSummary, updatePrefs } from "../../lib/compcal-state";
 import { eventsForDay, getCalendarFixture } from "../../data/calendarFixtures";
+
+const PROFILE_NAME_KEY = "compcal_profile_name";
 
 type RowProps = {
   icon: ReactNode;
@@ -40,7 +43,15 @@ function SettingsRow({ icon, label, hint, onClick }: RowProps) {
 }
 
 export function ProfileScreen() {
+  const navigate = useNavigate();
   const [prefs, setPrefs] = useState(() => getPrefs());
+  const [profileName, setProfileName] = useState(() => {
+    try {
+      return localStorage.getItem(PROFILE_NAME_KEY) || "Mountain Cat";
+    } catch {
+      return "Mountain Cat";
+    }
+  });
   const weekly = useMemo(() => getWeeklyCommitmentSummary(), []);
   const bars = weekly.points.length ? weekly.points : [18, 24, 28, 42, 36, 54, 65];
   const weekView = useMemo(() => {
@@ -64,6 +75,33 @@ export function ProfileScreen() {
     setPrefs(next);
   };
 
+  const editProfile = () => {
+    const next = window.prompt("Update profile name", profileName)?.trim();
+    if (!next) return;
+    setProfileName(next);
+    try {
+      localStorage.setItem(PROFILE_NAME_KEY, next);
+    } catch {
+      /* ignore storage failures */
+    }
+  };
+
+  const signOut = () => {
+    const confirmed = window.confirm("Sign out of CompCal on this device?");
+    if (!confirmed) return;
+    try {
+      const keysToClear: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("compcal_")) keysToClear.push(key);
+      }
+      keysToClear.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* ignore storage failures */
+    }
+    navigate("/welcome", { replace: true });
+  };
+
   return (
     <div className="px-6 pt-10 pb-6">
       <h1
@@ -76,14 +114,14 @@ export function ProfileScreen() {
       <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card/90 p-6 shadow-[var(--shadow-card)]">
         <div className="flex flex-col items-center text-center sm:flex-row sm:text-left">
           <div className="mb-4 shrink-0 sm:mb-0 sm:mr-6">
-            <ClimberAvatar name="You" size={72} variant="pixelCat" isActive />
+            <ClimberAvatar name={profileName} size={72} variant="pixelCat" />
           </div>
           <div className="min-w-0 flex-1">
             <p
               className="text-xl text-ink"
               style={{ fontFamily: "var(--font-pixel)", letterSpacing: "0.02em" }}
             >
-              Mountain Cat
+              {profileName}
             </p>
             <p className="mt-1 text-sm text-warm-gray">@you · NYU CompCal</p>
             <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
@@ -144,6 +182,7 @@ export function ProfileScreen() {
             icon={<UserPen className="h-4 w-4" strokeWidth={2} />}
             label="Edit profile"
             hint="Name, avatar, school"
+            onClick={editProfile}
           />
           <div className="mx-3 h-px bg-border" />
           <SettingsRow
@@ -211,6 +250,7 @@ export function ProfileScreen() {
           <div className="mx-3 h-px bg-border" />
           <button
             type="button"
+            onClick={signOut}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-coral/10 active:bg-coral/15"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-coral/15 text-coral">
