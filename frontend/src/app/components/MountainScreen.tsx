@@ -181,14 +181,45 @@ export function MountainScreen() {
     return () => { cancelled = true; window.clearInterval(id); };
   }, []);
 
+  const sessionIdRef = useRef<number | string | null>(null);
+
   useEffect(() => {
     if (!hasCheckedIn) return;
+    let cancelled = false;
     fetch('/api/sessions/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ eventTitle: event.name }),
-    }).catch(() => {});
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (!cancelled && data?.sessionId) sessionIdRef.current = data.sessionId; })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [hasCheckedIn, event.name]);
+
+  useEffect(() => {
+    const endSession = () => {
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+      sessionIdRef.current = null;
+      const body = JSON.stringify({ sessionId: sid });
+      if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+        navigator.sendBeacon('/api/sessions/end', new Blob([body], { type: 'application/json' }));
+      } else {
+        fetch('/api/sessions/end', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('beforeunload', endSession);
+    return () => {
+      window.removeEventListener('beforeunload', endSession);
+      endSession();
+    };
+  }, []);
 
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
