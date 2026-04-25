@@ -66,6 +66,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
   ])
 
-  // Redirect to friends page if coming from invite, otherwise home
-  res.redirect(inviteToken ? '/friends' : '/')
+  // Redirect to friends page if coming from invite, otherwise the calendar
+  // with a flag so the frontend plays the suiting_up animation.
+  res.redirect(inviteToken ? '/friends' : '/calendar?suiting_up=1')
 }

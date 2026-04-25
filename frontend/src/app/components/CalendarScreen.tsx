@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { format, startOfDay } from 'date-fns';
 import { eventsForDay, coClimbingNames, type CalendarEvent } from '../../data/calendarFixtures';
 import { getWeeklyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
@@ -18,6 +18,27 @@ export function CalendarScreen() {
   const navigate = useNavigate();
   const today = useMemo(() => startOfDay(new Date()), []);
   const token = getGoogleToken();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const showSuitingUp = searchParams.get('suiting_up') === '1';
+  const suitingUpRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!showSuitingUp) return;
+    const v = suitingUpRef.current;
+    if (!v) return;
+    v.currentTime = 0;
+    v.play().catch(() => {
+      const params = new URLSearchParams(searchParams);
+      params.delete('suiting_up');
+      setSearchParams(params, { replace: true });
+    });
+  }, [showSuitingUp, searchParams, setSearchParams]);
+
+  const clearSuitingUp = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('suiting_up');
+    setSearchParams(params, { replace: true });
+  };
 
   const [myEvents, setMyEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(!!token);
@@ -106,6 +127,26 @@ export function CalendarScreen() {
 
   return (
     <div className="px-4 pb-6 pt-10 sm:px-6">
+      {showSuitingUp && (
+        <div className="fixed inset-0 z-[70] bg-black">
+          <video
+            ref={suitingUpRef}
+            src="/media/suiting_up.mp4"
+            className="absolute inset-0 h-full w-full object-cover"
+            playsInline
+            autoPlay
+            onEnded={clearSuitingUp}
+            onError={clearSuitingUp}
+          />
+          <button
+            type="button"
+            onClick={clearSuitingUp}
+            className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1 text-xs text-white backdrop-blur hover:bg-white/25"
+          >
+            Skip
+          </button>
+        </div>
+      )}
       <header className="mb-6">
         <h1 className="mb-1 text-ink" style={{ fontFamily: 'var(--font-serif)', fontSize: '32px' }}>
           Calendar
