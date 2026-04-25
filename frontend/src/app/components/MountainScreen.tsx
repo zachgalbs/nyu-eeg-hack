@@ -70,6 +70,7 @@ export function MountainScreen() {
   const [distractedCount, setDistractionCount] = useState(0);
   const [showRoast, setShowRoast] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [checking, setChecking] = useState(false);
   const summitSent = useRef(false);
   const [artReady, setArtReady] = useState(false);
 
@@ -123,55 +124,59 @@ export function MountainScreen() {
     }
   }, [elapsedSeconds, totalSeconds, eventId, focusScore, navigate]);
 
-  useEffect(() => {
-    if (isPaused) return;
+  async function runFocusCheck() {
+    if (checking) return;
+    setChecking(true);
 
-    const id = window.setInterval(async () => {
-      let isDistracted: boolean;
-      let rawScore: number | null = null;
+    let isDistracted: boolean;
+    let rawScore: number | null = null;
 
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const hasCamera = streamRef.current && video && canvas && video.readyState >= 2;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const hasCamera = streamRef.current && video && canvas && video.readyState >= 2;
 
-      if (hasCamera) {
-        try {
-          const result = await checkFocusViaAPI(video!, canvas!);
-          isDistracted = result.isDistracted;
-          rawScore = result.score;
-          setLastFrameSrc(result.dataUrl);
-        } catch {
-          isDistracted = Math.random() < 0.15;
-        }
-      } else {
+    if (hasCamera) {
+      try {
+        const result = await checkFocusViaAPI(video!, canvas!);
+        isDistracted = result.isDistracted;
+        rawScore = result.score;
+        setLastFrameSrc(result.dataUrl);
+      } catch {
         isDistracted = Math.random() < 0.15;
       }
+    } else {
+      isDistracted = Math.random() < 0.15;
+    }
 
-      setLastRawScore(rawScore);
-      const checkResult = isDistracted ? 'distracted' : 'verified';
-      setLastCheck(checkResult);
-      setToastType(checkResult);
-      setShowToast(true);
+    setLastRawScore(rawScore);
+    const checkResult = isDistracted ? 'distracted' : 'verified';
+    setLastCheck(checkResult);
+    setToastType(checkResult);
+    setShowToast(true);
 
-      if (isDistracted) {
-        setFocusScore((prev) => Math.max(70, prev - 3));
-        setDistractionCount((prev) => {
-          const newCount = prev + 1;
-          if (newCount >= 3) {
-            setShowRoast(true);
-            return 0;
-          }
-          return newCount;
-        });
-      } else {
-        setFocusScore((prev) => Math.min(100, prev + 1));
-      }
+    if (isDistracted) {
+      setFocusScore((prev) => Math.max(70, prev - 3));
+      setDistractionCount((prev) => {
+        const newCount = prev + 1;
+        if (newCount >= 3) {
+          setShowRoast(true);
+          return 0;
+        }
+        return newCount;
+      });
+    } else {
+      setFocusScore((prev) => Math.min(100, prev + 1));
+    }
 
-      window.setTimeout(() => setShowToast(false), 2500);
-    }, 60000);
+    window.setTimeout(() => setShowToast(false), 2500);
+    setChecking(false);
+  }
 
+  useEffect(() => {
+    if (isPaused) return;
+    const id = window.setInterval(runFocusCheck, 60000);
     return () => window.clearInterval(id);
-  }, [isPaused]);
+  }, [isPaused]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
   const blockLabel =
@@ -279,6 +284,15 @@ export function MountainScreen() {
                 style={{ fontSize: "13px", fontWeight: 600 }}
               >
                 Ask
+              </button>
+              <button
+                type="button"
+                onClick={runFocusCheck}
+                disabled={checking}
+                className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
+                style={{ fontSize: "13px", fontWeight: 600 }}
+              >
+                {checking ? "…" : "Check"}
               </button>
             </div>
           </div>
