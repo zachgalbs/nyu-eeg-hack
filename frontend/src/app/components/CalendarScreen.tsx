@@ -24,7 +24,7 @@ function formatRange(e: CalendarEvent) {
 }
 
 function isHappening(e: CalendarEvent, now: Date) {
-  return !e.allDay && e.start <= now && now <= e.end;
+  return !e.allDay && e.end > e.start && e.start <= now && now <= e.end;
 }
 
 export function CalendarScreen() {
@@ -80,10 +80,8 @@ export function CalendarScreen() {
   // Today view data
   const todayAllEvents = eventsForDay(today, allEvents);
   const todayMine = todayAllEvents.filter((e) => e.ownerId === 'me');
-  const todayMineTimed = todayMine.filter((e) => !e.allDay);
-  const todayMineAllDay = todayMine.filter((e) => e.allDay);
   const todayOthers = todayAllEvents.filter((e) => e.ownerId !== 'me');
-  const activeEvent = todayMineTimed.find((e) => isHappening(e, now)) ?? null;
+  const activeEvent = todayMine.find((e) => isHappening(e, now)) ?? null;
 
   // Week view data
   const weekDays = useMemo(
@@ -182,6 +180,7 @@ export function CalendarScreen() {
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Active timed event gets the prominent HAPPENING NOW treatment */}
               {activeEvent && (
                 <div
                   className="border-2 border-moss bg-card p-5"
@@ -211,59 +210,42 @@ export function CalendarScreen() {
                 </div>
               )}
 
-              {todayMineTimed.filter((e) => !isHappening(e, now)).map((event) => {
-                const upcoming = event.start > now;
+              {/* All other events — always shown, always checkable */}
+              {todayMine.filter((e) => e !== activeEvent).map((event) => {
+                const isAllDay = event.allDay || event.start.getTime() === event.end.getTime();
+                const upcoming = !isAllDay && event.start > now;
+                const ended = !isAllDay && event.end < now;
+                const badge = isAllDay ? 'All day' : upcoming ? `Starts ${format(event.start, 'h:mm a')}` : ended ? 'Ended' : null;
                 return (
                   <div
                     key={event.id}
-                    className="border border-border bg-card p-4 opacity-70"
+                    className="border border-border bg-card p-4"
                     style={{ borderRadius: '16px' }}
                   >
-                    <div className="flex items-baseline justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3 mb-1">
                       <h3 className="text-ink" style={{ fontSize: '16px', fontWeight: 600 }}>{event.title}</h3>
-                      <span
-                        className={`shrink-0 text-xs px-2 py-0.5 rounded-full ${upcoming ? 'bg-mountain/10 text-warm-gray' : 'bg-border text-warm-gray'}`}
-                      >
-                        {upcoming ? `Starts ${format(event.start, 'h:mm a')}` : 'Ended'}
-                      </span>
+                      {badge && (
+                        <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-mountain/10 text-warm-gray">
+                          {badge}
+                        </span>
+                      )}
                     </div>
-                    <p className="mt-0.5 text-warm-gray" style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
-                      {formatRange(event)}
-                    </p>
+                    {!isAllDay && (
+                      <p className="mb-3 text-warm-gray" style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}>
+                        {formatRange(event)}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/mountain/${event.id}`, { state: { title: event.title } })}
+                      className="w-full bg-primary py-2.5 text-primary-foreground transition-opacity hover:opacity-90"
+                      style={{ borderRadius: '999px', fontWeight: 600, fontSize: '14px' }}
+                    >
+                      Check in
+                    </button>
                   </div>
                 );
               })}
-
-              {!activeEvent && todayMineTimed.length > 0 && (
-                <p className="pt-1 text-center text-warm-gray" style={{ fontSize: '13px' }}>
-                  No session in progress right now.
-                </p>
-              )}
-
-              {todayMineAllDay.length > 0 && (
-                <div className="mt-2">
-                  <p className="mb-2 text-warm-gray" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>All day</p>
-                  <div className="space-y-2">
-                    {todayMineAllDay.map((event) => (
-                      <div
-                        key={event.id}
-                        className="border border-border bg-card p-4 flex items-center justify-between gap-3"
-                        style={{ borderRadius: '16px' }}
-                      >
-                        <span className="text-ink" style={{ fontSize: '15px', fontWeight: 600 }}>{event.title}</span>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/mountain/${event.id}`, { state: { title: event.title } })}
-                          className="shrink-0 rounded-full bg-primary px-4 py-1.5 text-primary-foreground transition-opacity hover:opacity-90"
-                          style={{ fontSize: '13px', fontWeight: 600 }}
-                        >
-                          Check in
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {todayOthers.length > 0 && (
                 <div className="mt-4">
