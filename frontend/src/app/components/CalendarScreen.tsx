@@ -23,8 +23,11 @@ function formatRange(e: CalendarEvent) {
   return `${format(e.start, 'h:mm a')} – ${format(e.end, 'h:mm a')}`;
 }
 
+const MIN_DURATION_MS = 60_000; // events shorter than 1 min are treated as zero-duration
+
 function isHappening(e: CalendarEvent, now: Date) {
-  return !e.allDay && e.end > e.start && e.start <= now && now <= e.end;
+  const duration = e.end.getTime() - e.start.getTime();
+  return !e.allDay && duration >= MIN_DURATION_MS && e.start <= now && now <= e.end;
 }
 
 export function CalendarScreen() {
@@ -212,7 +215,7 @@ export function CalendarScreen() {
 
               {/* All other events — always shown, always checkable */}
               {todayMine.filter((e) => e !== activeEvent).map((event) => {
-                const isAllDay = event.allDay || event.start.getTime() === event.end.getTime();
+                const isAllDay = event.allDay || (event.end.getTime() - event.start.getTime()) < MIN_DURATION_MS;
                 const upcoming = !isAllDay && event.start > now;
                 const ended = !isAllDay && event.end < now;
                 const badge = isAllDay ? 'All day' : upcoming ? `Starts ${format(event.start, 'h:mm a')}` : ended ? 'Ended' : null;
