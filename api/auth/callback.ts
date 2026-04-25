@@ -4,7 +4,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { code } = req.query
   if (!code) return res.status(400).json({ error: 'Missing code' })
 
-  const base = process.env.VERCEL_URL
+  const base = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000'
 

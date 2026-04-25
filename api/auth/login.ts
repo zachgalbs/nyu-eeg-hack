@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
-  const base = process.env.VERCEL_URL
+  const base = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'http://localhost:3000'
 
