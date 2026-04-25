@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import {
   Pause,
   Play,
@@ -16,6 +16,7 @@ import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
+import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import {
   getBuddyCommitment,
@@ -23,14 +24,30 @@ import {
   saveSessionOutcome,
   updatePrefs,
 } from "../../lib/compcal-state";
+import { getSortedFriendPresence } from "../../lib/friends-presence";
+import {
+  getTabIdentity,
+  publishRoast,
+  subscribeRoasts,
+  type RoastDelivery,
+} from "../../lib/roast-channel";
+import {
+  generateRoast,
+  getUserIdFromCookie,
+  persistThrowEvent,
+  pollRoastInbox,
+} from "../../lib/roast-api";
 
-interface Friend {
-  user_id: string;
-  name: string;
-  avatar_url: string | null;
-  last_event: string | null;
-  is_active: boolean;
-}
+const eventData: Record<string, { name: string; duration: number }> = {
+  '1': { name: "Deep Work: Design System", duration: 120 },
+  '2': { name: "Team Standup", duration: 30 },
+  '3': { name: "Focus Block: Code Review", duration: 120 },
+  'me-1': { name: "Deep Work: Design System", duration: 120 },
+  'me-2': { name: "Team Standup", duration: 30 },
+  'me-3': { name: "Focus Block: Code Review", duration: 120 },
+  'me-4': { name: "Reading", duration: 90 },
+  active: { name: "Focus Session", duration: 60 },
+};
 
 function formatHMS(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -39,19 +56,23 @@ function formatHMS(totalSeconds: number) {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+type ActiveRoast = {
+  text: string;
+  trigger: "auto" | "friend_throw";
+  fromName?: string;
+};
+
+function estimateFriendFocus(seedMinutes: number) {
+  return 72 + (seedMinutes % 24);
+}
+
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state as { title?: string; duration?: number } | null;
-
-  const eventName = state?.title ?? "Focus Session";
-  const eventDuration = state?.duration ?? 60;
   const eventKey = eventId ?? "active";
+  const event = eventData[eventKey] ?? eventData.active;
 
-  // Demo cap: sessions run for at most 3 minutes to keep demos snappy
-  const totalSeconds = Math.min(Math.max(45, eventDuration * 60), 180);
-
+  const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
@@ -63,54 +84,19 @@ export function MountainScreen() {
   const [toastType, setToastType] = useState<'verified' | 'distracted'>('verified');
   const [distractedCount, setDistractionCount] = useState(0);
   const [distractedChecksTotal, setDistractedChecksTotal] = useState(0);
-  const [showRoast, setShowRoast] = useState(false);
+  const [activeRoast, setActiveRoast] = useState<ActiveRoast | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [prefs, setPrefs] = useState(() => getPrefs());
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [friends, setFriends] = useState<Friend[]>([]);
   const summitSent = useRef(false);
   const [artReady, setArtReady] = useState(false);
+  const [timelineFlash, setTimelineFlash] = useState<"checkin" | "focus" | "summit" | null>(null);
+  const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
+  const [isThrowing, setIsThrowing] = useState(false);
+  const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
+  const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
-  // Webcam refs for focus checks
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  // Fetch friends list for the panel
-  useEffect(() => {
-    fetch('/api/friends/list')
-      .then(async (r) => {
-        if (!r.ok) return;
-        const data = await r.json();
-        setFriends(data.friends ?? []);
-      })
-      .catch(() => {});
-  }, []);
-
-  // Start webcam when session begins
-  useEffect(() => {
-    if (!hasCheckedIn) return;
-    let stream: MediaStream | null = null;
-    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-      .then((s) => {
-        stream = s;
-        if (videoRef.current) {
-          videoRef.current.srcObject = s;
-          videoRef.current.play().catch(() => {});
-        }
-      })
-      .catch(() => {}); // silently continue if no camera
-    return () => {
-      stream?.getTracks().forEach((t) => t.stop());
-    };
-  }, [hasCheckedIn]);
-
-  // Timer
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
     const id = window.setInterval(() => {
@@ -119,114 +105,96 @@ export function MountainScreen() {
     return () => window.clearInterval(id);
   }, [totalSeconds, isPaused, hasCheckedIn]);
 
-  // Progress
   useEffect(() => {
     setProgress(Math.min(100, (elapsedSeconds / totalSeconds) * 100));
   }, [elapsedSeconds, totalSeconds]);
 
-  // Summit detection
   useEffect(() => {
-    if (elapsedSeconds < totalSeconds || totalSeconds <= 0 || !hasCheckedIn || summitSent.current) return;
-    summitSent.current = true;
-    const completedMinutes = Math.max(
-      1,
-      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * eventDuration),
-    );
-    const keptCommitment = completedMinutes >= Math.round(eventDuration * 0.8) && focusScore >= 80;
-    saveSessionOutcome({
-      id: `${eventKey}-${Date.now()}`,
-      eventId: eventKey,
-      eventTitle: eventName,
-      plannedMinutes: eventDuration,
-      completedMinutes,
-      focusScore,
-      distractedChecks: distractedChecksTotal,
-      keptCommitment,
-      buddyId: buddyCommitment?.buddyId,
-      buddyName: buddyCommitment?.buddyName,
-      completedAt: new Date().toISOString(),
-    });
-    if (sessionId) {
-      fetch('/api/sessions/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, focusScore }),
-      }).catch(() => {});
+    if (
+      elapsedSeconds >= totalSeconds &&
+      totalSeconds > 0 &&
+      hasCheckedIn &&
+      !summitSent.current
+    ) {
+      summitSent.current = true;
+      const completedMinutes = Math.max(
+        1,
+        Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
+      );
+      const keptCommitment =
+        completedMinutes >= Math.round(event.duration * 0.8) && focusScore >= 80;
+      saveSessionOutcome({
+        id: `${eventKey}-${Date.now()}`,
+        eventId: eventKey,
+        eventTitle: event.name,
+        plannedMinutes: event.duration,
+        completedMinutes,
+        focusScore,
+        distractedChecks: distractedChecksTotal,
+        keptCommitment,
+        buddyId: buddyCommitment?.buddyId,
+        buddyName: buddyCommitment?.buddyName,
+        completedAt: new Date().toISOString(),
+      });
+      navigate(`/summit/${eventId ?? "me-1"}`);
     }
-    navigate(`/summit/${eventId ?? "active"}`, {
-      state: { title: eventName, duration: eventDuration },
-    });
   }, [
-    elapsedSeconds, totalSeconds, hasCheckedIn, eventId, eventDuration,
-    eventName, eventKey, navigate, focusScore, distractedChecksTotal,
-    buddyCommitment?.buddyId, buddyCommitment?.buddyName, sessionId,
+    elapsedSeconds,
+    totalSeconds,
+    hasCheckedIn,
+    eventId,
+    event.duration,
+    event.name,
+    eventKey,
+    navigate,
+    focusScore,
+    distractedChecksTotal,
+    buddyCommitment?.buddyId,
+    buddyCommitment?.buddyName,
   ]);
 
-  // Capture a webcam frame and call the focus check API
-  async function captureAndCheck(): Promise<boolean> {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return false;
-    canvas.width = video.videoWidth || 320;
-    canvas.height = video.videoHeight || 240;
-    canvas.getContext('2d')?.drawImage(video, 0, 0);
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-    try {
-      const res = await fetch('/api/check-focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64 }),
-      });
-      const { score } = await res.json();
-      return (score ?? 0) > 0.5;
-    } catch {
-      return false;
-    }
-  }
-
-  // Focus check interval — every 10s
   useEffect(() => {
     if (isPaused || !hasCheckedIn || !prefs.focusChecksEnabled) return;
-    const id = window.setInterval(() => {
-      captureAndCheck().then((isDistracted) => {
-        const checkResult = isDistracted ? 'distracted' : 'verified';
-        setLastCheck(checkResult);
-        setToastType(checkResult);
-        setShowToast(true);
-        if (isDistracted) {
-          setDistractedChecksTotal((prev) => prev + 1);
-          setFocusScore((prev) => Math.max(70, prev - (prefs.lowPressureMode ? 1 : 3)));
-          setDistractionCount((prev) => {
-            const next = prev + 1;
-            if (!prefs.lowPressureMode && next >= 3) { setShowRoast(true); return 0; }
-            return next;
-          });
-        } else {
-          setFocusScore((prev) => Math.min(100, prev + 1));
-        }
-        window.setTimeout(() => setShowToast(false), 2500);
-      });
+    const focusCheckInterval = window.setInterval(() => {
+      const isDistracted = Math.random() < 0.15;
+      const checkResult = isDistracted ? 'distracted' : 'verified';
+
+      setLastCheck(checkResult);
+      setToastType(checkResult);
+      setShowToast(true);
+
+      if (isDistracted) {
+        setDistractedChecksTotal((prev) => prev + 1);
+        setFocusScore((prev) => Math.max(70, prev - (prefs.lowPressureMode ? 1 : 3)));
+        setDistractionCount((prev) => {
+          const newCount = prev + 1;
+          if (!prefs.lowPressureMode && newCount >= 3) {
+            void (async () => {
+              const roastText = await generateRoast({
+                userName: "You",
+                userBlock: event.name,
+                minutesIn: Math.floor(elapsedSeconds / 60),
+                trigger: "auto",
+              });
+              setActiveRoast({ text: roastText, trigger: "auto" });
+            })();
+            return 0;
+          }
+          return newCount;
+        });
+      } else {
+        setFocusScore((prev) => Math.min(100, prev + 1));
+      }
+
+      window.setTimeout(() => setShowToast(false), 2500);
     }, 10000);
-    return () => window.clearInterval(id);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPaused, hasCheckedIn, prefs.focusChecksEnabled, prefs.lowPressureMode]);
+
+    return () => window.clearInterval(focusCheckInterval);
+  }, [isPaused, hasCheckedIn, prefs.focusChecksEnabled, prefs.lowPressureMode, elapsedSeconds, event.name]);
 
   const toggleFocusChecks = () => {
     const next = updatePrefs({ focusChecksEnabled: !prefs.focusChecksEnabled });
     setPrefs(next);
-  };
-
-  const handleCheckIn = () => {
-    setHasCheckedIn(true);
-    setCheckedInAt(new Date());
-    fetch('/api/sessions/start', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventTitle: eventName }),
-    })
-      .then((r) => r.json())
-      .then((data) => { if (data.sessionId) setSessionId(data.sessionId); })
-      .catch(() => {});
   };
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
@@ -234,33 +202,95 @@ export function MountainScreen() {
     blockMinutes >= 60
       ? `${Math.floor(blockMinutes / 60)}h ${blockMinutes % 60}m this block`
       : `${blockMinutes}m this block`;
-
   const timeline = [
-    { id: "checkin", label: "Check in", Icon: Flag, state: hasCheckedIn ? "done" : "current" },
-    { id: "focus", label: "Focus climb", Icon: Timer, state: hasCheckedIn ? (progress >= 98 ? "done" : "current") : "upcoming" },
-    { id: "summit", label: "Summit", Icon: Trophy, state: progress >= 98 ? "done" : "upcoming" },
+    {
+      id: "checkin",
+      label: "Check in",
+      Icon: Flag,
+      state: hasCheckedIn ? "done" : "current",
+    },
+    {
+      id: "focus",
+      label: "Focus climb",
+      Icon: Timer,
+      state: hasCheckedIn ? (progress >= 98 ? "done" : "current") : "upcoming",
+    },
+    {
+      id: "summit",
+      label: "Summit",
+      Icon: Trophy,
+      state: progress >= 98 ? "done" : "upcoming",
+    },
   ] as const;
-
-  const activeFriends = useMemo(() => friends.filter((f) => f.is_active), [friends]);
+  const friendPresence = useMemo(
+    () => getSortedFriendPresence().filter((friend) => !friend.isUser),
+    []
+  );
+  const activeFriends = friendPresence.filter((friend) => friend.status === "climbing");
+  const friendFocusMap = useMemo(
+    () =>
+      Object.fromEntries(
+        activeFriends.map((friend) => [String(friend.id), estimateFriendFocus(friend.focusedTimeToday)])
+      ),
+    [activeFriends]
+  );
+  const friendClimbers = useMemo(
+    () =>
+      activeFriends.slice(0, 4).map((friend, index) => {
+        const friendFocus = friendFocusMap[String(friend.id)] ?? 78;
+        const relativeDelta = (friendFocus - focusScore) * 0.85;
+        return {
+          id: String(friend.id),
+          name: friend.name,
+          progress: Math.max(4, Math.min(99, progress + relativeDelta)),
+          color: index % 2 === 0 ? "#91b8d8" : "#87d8b0",
+        };
+      }),
+    [activeFriends, friendFocusMap, focusScore, progress]
+  );
+  const throwTarget = useMemo(
+    () => activeFriends.find((friend) => String(friend.id) === throwTargetId) || activeFriends[0] || null,
+    [activeFriends, throwTargetId]
+  );
   const stripFriends = activeFriends.slice(0, 4);
   const overflowActiveCount = Math.max(0, activeFriends.length - stripFriends.length);
+  const throwTargetFocus = throwTarget ? friendFocusMap[String(throwTarget.id)] ?? 75 : null;
+  const canThrow =
+    hasCheckedIn &&
+    !isPaused &&
+    !!throwTarget &&
+    throwTargetFocus !== null &&
+    focusScore >= throwTargetFocus + 5 &&
+    !isThrowing;
   const canExit = hasCheckedIn && elapsedSeconds > 0;
 
+  useEffect(() => {
+    if (activeFriends.length === 0) {
+      setThrowTargetId(null);
+      return;
+    }
+    setThrowTargetId((prev) => prev || String(activeFriends[0].id));
+  }, [activeFriends]);
+
   const exitSession = () => {
-    if (!canExit) { navigate("/calendar"); return; }
+    if (!canExit) {
+      navigate("/calendar");
+      return;
+    }
     const confirmed = window.confirm(
-      "Exit this session now? Your in-progress climb will be saved as a partial session.",
+      "Exit this session now? Your in-progress climb will be saved as a partial session."
     );
     if (!confirmed) return;
+
     const completedMinutes = Math.max(
       1,
-      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * eventDuration),
+      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
     );
     saveSessionOutcome({
       id: `${eventKey}-partial-${Date.now()}`,
       eventId: eventKey,
-      eventTitle: eventName,
-      plannedMinutes: eventDuration,
+      eventTitle: event.name,
+      plannedMinutes: event.duration,
       completedMinutes,
       focusScore,
       distractedChecks: distractedChecksTotal,
@@ -269,23 +299,107 @@ export function MountainScreen() {
       buddyName: buddyCommitment?.buddyName,
       completedAt: new Date().toISOString(),
     });
-    if (sessionId) {
-      fetch('/api/sessions/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, focusScore }),
-      }).catch(() => {});
-    }
     navigate("/calendar");
+  };
+
+  const handleTimelineAction = (stepId: "checkin" | "focus" | "summit") => {
+    setTimelineFlash(stepId);
+    window.setTimeout(() => setTimelineFlash(null), 650);
+
+    if (stepId === "checkin") {
+      if (!hasCheckedIn) {
+        setHasCheckedIn(true);
+        setCheckedInAt(new Date());
+      }
+      return;
+    }
+
+    if (stepId === "focus") {
+      if (hasCheckedIn && isPaused) setIsPaused(false);
+      return;
+    }
+
+    if (stepId === "summit" && hasCheckedIn && progress >= 98) {
+      navigate(`/summit/${eventId ?? "me-1"}`);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = subscribeRoasts((payload) => {
+      if (payload.toUserId !== localUserId && payload.toUserId !== "broadcast") return;
+      if (payload.fromUserId === localUserId) return;
+      setActiveRoast({
+        text: payload.roastText,
+        trigger: payload.trigger,
+        fromName: payload.fromName,
+      });
+    });
+    return unsubscribe;
+  }, [localUserId]);
+
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    const id = window.setInterval(() => {
+      void (async () => {
+        const inboxEvents = await pollRoastInbox();
+        const incoming = inboxEvents.find((event) => event.toUserId === localUserId);
+        if (!incoming) return;
+        setActiveRoast({
+          text: incoming.roastText,
+          trigger: incoming.trigger,
+          fromName: incoming.fromName,
+        });
+      })();
+    }, 2500);
+    return () => window.clearInterval(id);
+  }, [hasCheckedIn, localUserId]);
+
+  const throwAtFriend = async () => {
+    if (!throwTarget || !canThrow) return;
+    setIsThrowing(true);
+    const targetProgress = friendClimbers.find((friend) => friend.id === String(throwTarget.id))?.progress ?? progress;
+    setProjectile({ fromProgress: progress, toProgress: targetProgress, active: true });
+    window.setTimeout(() => setProjectile(null), 700);
+
+    try {
+      const roastText = await generateRoast({
+        userName: "You",
+        userBlock: event.name,
+        friendName: throwTarget.name,
+        friendActivity: throwTarget.currentTask || "studying",
+        minutesIn: Math.floor(elapsedSeconds / 60),
+        trigger: "friend_throw",
+      });
+
+      const payload: RoastDelivery = {
+        id: `throw-${Date.now()}`,
+        fromUserId: localUserId,
+        fromName: "You",
+        toUserId: "broadcast",
+        toName: throwTarget.name,
+        sessionId: eventKey,
+        roastText,
+        trigger: "friend_throw",
+        createdAt: new Date().toISOString(),
+      };
+
+      publishRoast(payload);
+      void persistThrowEvent({
+        toUserId: String(throwTarget.id),
+        toName: throwTarget.name,
+        fromName: payload.fromName,
+        roastText: payload.roastText,
+        trigger: payload.trigger,
+        sessionId: payload.sessionId,
+      });
+    } finally {
+      setIsThrowing(false);
+    }
   };
 
   return (
     <>
-      {/* Hidden webcam elements */}
-      <video ref={videoRef} className="hidden" muted playsInline />
-      <canvas ref={canvasRef} className="hidden" />
-
-      <div className="fixed inset-0 z-30 overflow-hidden bg-background-solid">
+      <div className="fixed inset-0 z-30 overflow-y-auto bg-background-solid">
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
           alt=""
@@ -301,33 +415,11 @@ export function MountainScreen() {
           aria-hidden
         />
 
-        <div
-          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${
-            artReady ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <div
-            className="overflow-hidden rounded-2xl border-2 border-border/40"
-            style={{
-              width: "min(85vw, 360px)",
-              height: "min(85vw, 360px)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-            }}
-          >
-            <MountainSVG
-              progress={progress}
-              climberName="You"
-              climberColor="#c4b5e8"
-              trailOnly
-              isPaused={!hasCheckedIn || isPaused}
-            />
-          </div>
-        </div>
-
-        <div className="absolute top-0 left-0 right-0 z-10 flex justify-center px-4 pt-4 sm:px-6">
-          <div className="flex w-full max-w-6xl items-start justify-between gap-3">
+        <div className="relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5">
+          <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
             <div
-              className={`min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-4 ${isPaused ? "opacity-90" : ""}`}
+              className={`min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-3 ${isPaused ? "opacity-90" : ""}`}
             >
               {isPaused ? (
                 <div
@@ -341,7 +433,7 @@ export function MountainScreen() {
                 className={`mb-1 text-foreground tabular-nums tracking-tight ${isPaused ? "text-warm-gray" : ""}`}
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: "clamp(2rem, 6vw, 2.75rem)",
+                  fontSize: "clamp(1.75rem, 5.2vw, 2.35rem)",
                   fontWeight: 600,
                   lineHeight: 1.05,
                 }}
@@ -356,12 +448,16 @@ export function MountainScreen() {
                   fontWeight: 400,
                 }}
               >
-                {eventName}
+                {event.name}
               </h2>
               <div
                 className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-2 text-muted"
-                style={{ fontSize: "13px", fontFamily: "var(--font-mono)" }}
+                style={{
+                  fontSize: "13px",
+                  fontFamily: "var(--font-mono)",
+                }}
               >
+                <span>Today&apos;s focus (demo): 3h 24m</span>
                 <span className="text-foreground/90">
                   {hasCheckedIn ? blockLabel : "check in to start timer"}
                 </span>
@@ -369,7 +465,10 @@ export function MountainScreen() {
               {!hasCheckedIn ? (
                 <button
                   type="button"
-                  onClick={handleCheckIn}
+                  onClick={() => {
+                    setHasCheckedIn(true);
+                    setCheckedInAt(new Date());
+                  }}
                   className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                 >
                   Check in now
@@ -405,7 +504,7 @@ export function MountainScreen() {
                   <span className="inline-flex -space-x-1">
                     {stripFriends.map((friend) => (
                       <span
-                        key={friend.user_id}
+                        key={friend.id}
                         className="flex h-5 w-5 items-center justify-center rounded-full border border-card bg-card text-[9px] font-semibold text-ink"
                       >
                         {friend.name.charAt(0)}
@@ -426,124 +525,212 @@ export function MountainScreen() {
                 >
                   Full list
                 </button>
+                {activeFriends.length > 0 ? (
+                  <select
+                    value={throwTarget ? String(throwTarget.id) : ""}
+                    onChange={(event) => setThrowTargetId(event.target.value)}
+                    className="rounded-full border border-border bg-background-solid/55 px-2 py-1 text-[11px] text-foreground"
+                  >
+                    {activeFriends.map((friend) => (
+                      <option key={friend.id} value={String(friend.id)}>
+                        {friend.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={throwAtFriend}
+                  disabled={!canThrow}
+                  className="rounded-full border border-border bg-terracotta/20 px-2.5 py-1 text-[11px] text-foreground transition-opacity hover:opacity-85 disabled:opacity-45"
+                >
+                  {isThrowing ? "Throwing..." : throwTarget ? `Throw at ${throwTarget.name}` : "Throw"}
+                </button>
+              </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFriendsPanelOpen(true)}
+                  className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
+                  aria-label="Open friends panel"
+                  style={{ fontSize: "12px", fontWeight: 600 }}
+                >
+                  <Users className="h-4 w-4" strokeWidth={2} />
+                  Friends
+                </button>
+                <button
+                  type="button"
+                  onClick={exitSession}
+                  className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
+                  aria-label="Exit session"
+                  style={{ fontSize: "12px", fontWeight: 600 }}
+                >
+                  <LogOut className="h-4 w-4" strokeWidth={2} />
+                  Exit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPaused((p) => !p)}
+                  className="flex items-center justify-center rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
+                  aria-label={isPaused ? "Resume session" : "Pause session"}
+                  aria-pressed={isPaused}
+                  disabled={!hasCheckedIn}
+                >
+                  {isPaused ? (
+                    <Play className="h-5 w-5" strokeWidth={2} />
+                  ) : (
+                    <Pause className="h-5 w-5" strokeWidth={2} />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAssistantOpen(true)}
+                  className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90"
+                  style={{ fontSize: "13px", fontWeight: 600 }}
+                >
+                  Ask
+                </button>
               </div>
             </div>
-            <div className="flex shrink-0 flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setFriendsPanelOpen(true)}
-                className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
-                aria-label="Open friends panel"
-                style={{ fontSize: "12px", fontWeight: 600 }}
-              >
-                <Users className="h-4 w-4" strokeWidth={2} />
-                Friends
-              </button>
-              <button
-                type="button"
-                onClick={exitSession}
-                className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
-                aria-label="Exit session"
-                style={{ fontSize: "12px", fontWeight: 600 }}
-              >
-                <LogOut className="h-4 w-4" strokeWidth={2} />
-                Exit
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsPaused((p) => !p)}
-                className="flex items-center justify-center rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
-                aria-label={isPaused ? "Resume session" : "Pause session"}
-                aria-pressed={isPaused}
-                disabled={!hasCheckedIn}
-              >
-                {isPaused ? (
-                  <Play className="h-5 w-5" strokeWidth={2} />
-                ) : (
-                  <Pause className="h-5 w-5" strokeWidth={2} />
-                )}
-              </button>
-            </div>
           </div>
-        </div>
-
-        <div className="absolute bottom-36 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:left-6 sm:right-6">
-          <div className="flex items-center gap-4">
+          <div className={`flex items-center justify-center py-2 transition-opacity duration-500 ${
+            artReady ? "opacity-100" : "opacity-0"
+          }`}>
             <div
-              className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
-              style={{ width: 80, height: 60 }}
+              className="overflow-hidden rounded-2xl border-2 border-border/40"
+              style={{
+                width: "min(88vw, 560px)",
+                height: "min(42vh, 390px)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+              }}
             >
-              <div className="text-center">
-                <div
-                  className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
-                />
-                {prefs.focusChecksEnabled ? (isPaused ? "PAUSED" : "LIVE") : "CHECKS OFF"}
-              </div>
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div
-                className="mb-1 text-foreground tabular-nums"
-                style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 600 }}
-              >
-                {focusScore}% focused
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`h-2 w-2 shrink-0 rounded-full ${
-                    lastCheck === "verified" ? "bg-moss" : "bg-coral"
-                  }`}
-                />
-                <span className="text-muted" style={{ fontSize: "13px" }}>
-                  {lastCheck === "verified" ? "focused" : "distracted"}
-                </span>
-              </div>
+              <MountainSVG
+                progress={progress}
+                climberName="You"
+                climberColor="#c4b5e8"
+                trailOnly
+                isPaused={!hasCheckedIn || isPaused}
+                friendClimbers={friendClimbers}
+                throwProjectile={projectile}
+              />
             </div>
           </div>
-        </div>
 
-        <div className="absolute bottom-56 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md sm:left-6 sm:right-6">
-          <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">Timeline</p>
-          <div className="grid grid-cols-3 gap-2">
-            {timeline.map(({ id, label, Icon, state: tState }) => (
-              <div
-                key={id}
-                className={`rounded-xl border px-2 py-2 text-center ${
-                  tState === "done"
-                    ? "border-moss/60 bg-moss/15"
-                    : tState === "current"
-                      ? "border-terracotta/60 bg-terracotta/10"
-                      : "border-border bg-background-solid/40"
-                }`}
-              >
-                <Icon
-                  className={`mx-auto mb-1 h-4 w-4 ${
-                    tState === "done"
-                      ? "text-moss"
-                      : tState === "current"
-                        ? "text-terracotta"
-                        : "text-warm-gray"
-                  }`}
-                />
-                <p className="text-[11px] text-foreground">{label}</p>
+          <div className="w-full">
+            <div className="flex items-end gap-3">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md">
+                  <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">Timeline</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {timeline.map(({ id, label, Icon, state }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => handleTimelineAction(id)}
+                        disabled={id === "summit" && !(hasCheckedIn && progress >= 98)}
+                        aria-disabled={id === "summit" && !(hasCheckedIn && progress >= 98)}
+                        className={`rounded-xl border px-2 py-2 text-center ${
+                          state === "done"
+                            ? "border-moss/60 bg-moss/15"
+                            : state === "current"
+                              ? "border-terracotta/60 bg-terracotta/10"
+                              : "border-border bg-background-solid/40"
+                        } ${timelineFlash === id ? "ring-2 ring-primary/70" : ""} transition-opacity hover:opacity-90 disabled:opacity-55`}
+                      >
+                        <Icon
+                          className={`mx-auto mb-1 h-4 w-4 ${
+                            state === "done"
+                              ? "text-moss"
+                              : state === "current"
+                                ? "text-terracotta"
+                                : "text-warm-gray"
+                          }`}
+                        />
+                        <p className="text-[11px] text-foreground">{label}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
+                      style={{ width: 80, height: 60 }}
+                    >
+                      <div className="text-center">
+                        <div
+                          className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
+                        />
+                        {prefs.focusChecksEnabled ? (isPaused ? "PAUSED" : "LIVE") : "CHECKS OFF"}
+                      </div>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="mb-1 text-foreground tabular-nums"
+                        style={{
+                          fontFamily: "var(--font-mono)",
+                          fontSize: "24px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {focusScore}% focused
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`h-2 w-2 shrink-0 rounded-full ${
+                            lastCheck === "verified" ? "bg-moss" : "bg-coral"
+                          }`}
+                        />
+                        <span className="text-muted" style={{ fontSize: "13px" }}>
+                          {lastCheck === "verified" ? "focused" : "distracted"}
+                        </span>
+                      </div>
+                      {throwTarget && throwTargetFocus !== null ? (
+                        <p className="mt-1 text-[11px] text-warm-gray">
+                          Throw unlocks when you are 5+ focus points ahead of {throwTarget.name} ({throwTargetFocus}%).
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5 text-foreground/90">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Focus checks are periodic snapshots only (no continuous recording).
+                    </span>
+                    <button
+                      type="button"
+                      onClick={toggleFocusChecks}
+                      className="rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-foreground transition-opacity hover:opacity-80"
+                    >
+                      {prefs.focusChecksEnabled ? "Turn checks off" : "Turn checks on"}
+                    </button>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="absolute bottom-20 left-4 right-4 z-10 mx-auto max-w-6xl rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md sm:left-6 sm:right-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="flex items-center gap-1.5 text-foreground/90">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Focus checks are periodic snapshots only (no continuous recording).
-            </span>
-            <button
-              type="button"
-              onClick={toggleFocusChecks}
-              className="rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-foreground transition-opacity hover:opacity-80"
-            >
-              {prefs.focusChecksEnabled ? "Turn checks off" : "Turn checks on"}
-            </button>
+              <div className="hidden w-[148px] shrink-0 rounded-2xl border border-border bg-card/90 p-2 shadow-[var(--shadow-card)] backdrop-blur-md md:block">
+                <p className="mb-1 text-center text-[10px] uppercase tracking-wide text-warm-gray">Mini map</p>
+                <div className="pointer-events-none overflow-hidden rounded-xl border border-border/60">
+                  <div className="h-[132px] w-[132px]">
+                    <MountainSVG
+                      progress={progress}
+                      climberName="You"
+                      climberColor="#c4b5e8"
+                      trailOnly
+                      isPaused={!hasCheckedIn || isPaused}
+                      friendClimbers={friendClimbers}
+                      throwProjectile={null}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -560,7 +747,7 @@ export function MountainScreen() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">Friends climbing</p>
                   <p className="text-xs text-warm-gray">
-                    {activeFriends.length} active · {friends.length} total
+                    {activeFriends.length} active · {friendPresence.length} total
                   </p>
                 </div>
                 <button
@@ -572,27 +759,37 @@ export function MountainScreen() {
                 </button>
               </div>
               <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                {friends.map((friend) => (
+                {friendPresence.map((friend) => (
                   <li
-                    key={friend.user_id}
+                    key={friend.id}
                     className="flex items-center gap-3 rounded-xl border border-border bg-background-solid/45 px-3 py-2"
                   >
                     <ClimberAvatar
                       name={friend.name}
                       size={30}
-                      color={friend.is_active ? "#6bc49a" : "#9aa8b4"}
-                      isActive={friend.is_active}
+                      color={friend.status === "climbing" ? "#6bc49a" : "#9aa8b4"}
+                      isActive={friend.status === "climbing"}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-foreground">{friend.name}</p>
                       <p className="truncate text-[11px] text-warm-gray">
-                        {friend.last_event ?? "No active block"}
+                        {friend.currentTask ?? "No active block"}
                       </p>
                     </div>
                     <span
-                      className={`text-[11px] ${friend.is_active ? "text-moss" : "text-warm-gray"}`}
+                      className={`text-[11px] ${
+                        friend.status === "climbing"
+                          ? "text-moss"
+                          : friend.status === "summited"
+                            ? "text-terracotta"
+                            : "text-warm-gray"
+                      }`}
                     >
-                      {friend.is_active ? "Climbing" : "Idle"}
+                      {friend.status === "climbing"
+                        ? "Climbing"
+                        : friend.status === "summited"
+                          ? "Summited"
+                          : "Idle"}
                     </span>
                   </li>
                 ))}
@@ -613,12 +810,18 @@ export function MountainScreen() {
         )}
       </div>
 
-      {showRoast && (
-        <RoastModal
-          onClose={() => setShowRoast(false)}
-          friends={activeFriends.map((f) => f.name)}
-        />
+      {assistantOpen && (
+        <StudyAssistantPanel onClose={() => setAssistantOpen(false)} />
       )}
+
+      {activeRoast ? (
+        <RoastModal
+          onClose={() => setActiveRoast(null)}
+          roastText={activeRoast.text}
+          trigger={activeRoast.trigger}
+          fromName={activeRoast.fromName}
+        />
+      ) : null}
     </>
   );
 }

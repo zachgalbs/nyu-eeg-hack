@@ -2,17 +2,17 @@ import { useState, useEffect } from "react";
 
 // Dark cat with purple edge-lighting for visibility
 export const CAT_COLORS: Record<string, string> = {
-  b: "#2A1E2A", // dark body
-  e: "#6A4A7A", // edge outline (purple tint)
+  b: "#1B1C26", // dark body
+  e: "#4C587A", // edge outline (cool blue-violet)
   y: "#E8C840", // amber eye
   Y: "#F0D860", // bright eye center
   w: "#FFFFFF", // white eye shine
-  h: "#7B5EA7", // harness purple
+  h: "#6E7FB0", // harness blue
   r: "#C8A050", // rope gold
   g: "#6B6060", // boot gray
   p: "#7A4A6A", // inner ear pink
   m: "#E8B0C0", // nose pink
-  t: "#4A3050", // tail
+  t: "#2D3250", // tail
   ".": "",
 };
 

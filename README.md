@@ -72,6 +72,11 @@ This gives users an emotional read of progress at a glance that plain timers and
 - Friends invite/list APIs with Google sign-in based session cookies.
 - Google OAuth flow and Calendar-readonly scopes implemented in serverless API routes.
 - Focus-check UX controls (enable/disable checks, low-pressure mode, trust messaging).
+- Hybrid roast pipeline:
+  - auto-trigger roast generation from session context (`/api/roast`),
+  - friend-throw delivery over BroadcastChannel for two-tab demo reliability,
+  - Postgres-backed throw persistence and inbox polling (`/api/roasts/throw`, `/api/roasts/inbox`).
+- Shared mountain rendering with multi-climber trail markers and throw projectile feedback.
 
 ### Prototype / In Progress
 
@@ -127,6 +132,9 @@ flowchart LR
     FriendsApi["/api/friends/*"]
     SessionsApi["/api/sessions/*"]
     FocusApi["/api/check-focus"]
+    RoastApi["/api/roast"]
+    RoastThrowApi["/api/roasts/throw"]
+    RoastInboxApi["/api/roasts/inbox"]
   end
 
   subgraph data [Storage]
@@ -142,8 +150,13 @@ flowchart LR
   Friends --> FriendsApi
   Calendar --> Auth
   Mountain --> SessionsApi
+  Mountain --> RoastApi
+  Mountain --> RoastThrowApi
+  Mountain --> RoastInboxApi
   SessionsApi --> VercelPostgres
   FriendsApi --> VercelPostgres
+  RoastThrowApi --> VercelPostgres
+  RoastInboxApi --> VercelPostgres
   Mountain --> LocalState
   FocusApi -.in progress wiring.-> Mountain
   EyeServer -.separate prototype.-> Mountain
@@ -230,6 +243,25 @@ For full API functionality, configure environment variables for:
 - Google OAuth (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
 - Database connection used by `@vercel/postgres`
 - Anthropic API key (for `/api/check-focus`)
+
+## Postgres note for roast events
+
+The friend-throw flow persists roast delivery events in `roast_events`. If your local or hosted database does not include this table yet, apply this SQL:
+
+```sql
+CREATE TABLE IF NOT EXISTS roast_events (
+  id BIGSERIAL PRIMARY KEY,
+  from_user_id TEXT NOT NULL,
+  from_name TEXT,
+  to_user_id TEXT NOT NULL,
+  to_name TEXT,
+  session_id TEXT,
+  roast_text TEXT NOT NULL,
+  trigger_source TEXT NOT NULL DEFAULT 'friend_throw',
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
 
 If these are missing locally, you can still run the frontend prototype flows.
 

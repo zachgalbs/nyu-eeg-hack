@@ -15,6 +15,7 @@ export function SummitScreen() {
   const [showMountain, setShowMountain] = useState(false);
   const [showText, setShowText] = useState(false);
   const [showScore, setShowScore] = useState(false);
+  const [shareState, setShareState] = useState<"idle" | "shared" | "error">("idle");
 
   const sessionOutcome = getLatestSessionOutcome(eventId);
   const eventName = state?.title ?? sessionOutcome?.eventTitle ?? "Focus Session";
@@ -30,6 +31,23 @@ export function SummitScreen() {
     setTimeout(() => setShowText(true), 800);
     setTimeout(() => setShowScore(true), 1200);
   }, []);
+
+  const shareToFriends = async () => {
+    const text = `I just summited "${event?.name || "Focus Session"}" on CompCal — ${completedMinutes}m completed at ${focusScore}% focus.`;
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({
+          title: "CompCal summit",
+          text,
+        });
+      } else if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      }
+      setShareState("shared");
+    } catch {
+      setShareState("error");
+    }
+  };
 
   return (
     <div className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden bg-background-solid">
@@ -159,10 +177,15 @@ export function SummitScreen() {
         >
           <button
             type="button"
+            onClick={shareToFriends}
             className="w-full border-2 border-border py-3 px-6 text-foreground transition-opacity hover:opacity-85"
             style={{ borderRadius: "999px", fontWeight: 600 }}
           >
-            share to friends&apos; mountains
+            {shareState === "shared"
+              ? "shared (or copied)"
+              : shareState === "error"
+                ? "share failed, try again"
+                : "share to friends' mountains"}
           </button>
           <button
             type="button"
