@@ -763,23 +763,6 @@ export function MountainScreen() {
                   </div>
                 </div>
               </div>
-
-              <div className="hidden w-[148px] shrink-0 rounded-2xl border border-border bg-card/90 p-2 shadow-[var(--shadow-card)] backdrop-blur-md md:block">
-                <p className="mb-1 text-center text-[10px] uppercase tracking-wide text-warm-gray">Mini map</p>
-                <div className="pointer-events-none overflow-hidden rounded-xl border border-border/60">
-                  <div className="h-[132px] w-[132px]">
-                    <MountainSVG
-                      progress={progress}
-                      climberName="You"
-                      climberColor="#c4b5e8"
-                      trailOnly
-                      isPaused={!hasCheckedIn || isPaused}
-                      friendClimbers={friendClimbers}
-                      throwProjectile={null}
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
