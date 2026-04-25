@@ -90,6 +90,7 @@ export function MountainScreen() {
   const [debugImage, setDebugImage] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [debugError, setDebugError] = useState<string | null>(null);
+  const [debugScore, setDebugScore] = useState<{ score: number; raw: string } | null>(null);
   const [artReady, setArtReady] = useState(false);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
@@ -260,8 +261,10 @@ export function MountainScreen() {
       body: JSON.stringify({ imageBase64, eventName: event.name }),
     });
     if (!res.ok) throw new Error(`API error ${res.status}`);
-    const { score } = await res.json();
-    return (score ?? 0) > 0.5;
+    const data = await res.json();
+    const score = typeof data.score === 'number' ? data.score : 0;
+    setDebugScore({ score, raw: typeof data.raw === 'string' ? data.raw : '' });
+    return score > 0.5;
   }
 
   useEffect(() => {
@@ -774,6 +777,12 @@ export function MountainScreen() {
                       </button>
                       {debugError && (
                         <p className="mt-1 text-[10px] text-coral">{debugError}</p>
+                      )}
+                      {debugScore && (
+                        <p className="mt-1 text-[10px] text-warm-gray">
+                          Claude: {debugScore.score.toFixed(2)} → {debugScore.score > 0.5 ? 'distracted' : 'focused'}
+                          {debugScore.raw && debugScore.raw !== debugScore.score.toFixed(2) ? ` (raw: ${debugScore.raw.slice(0, 40)})` : ''}
+                        </p>
                       )}
                     </div>
                   </div>

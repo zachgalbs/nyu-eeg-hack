@@ -31,6 +31,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   })
 
   const raw = (msg.content[0] as { text: string }).text.trim()
-  const score = parseFloat(raw)
-  res.json({ score: isNaN(score) ? 0 : score })
+  const match = raw.match(/(?:^|\D)([01](?:\.\d+)?)/)
+  const parsed = match ? parseFloat(match[1]) : NaN
+  const score = isNaN(parsed) ? 0 : Math.max(0, Math.min(1, parsed))
+  const distracted = score > 0.5
+  console.log('[check-focus]', JSON.stringify({
+    eventName: eventName ?? null,
+    imageBytes: imageBase64.length,
+    rawClaude: raw,
+    parsedScore: score,
+    distracted,
+  }))
+  res.json({ score, raw, distracted })
 }
