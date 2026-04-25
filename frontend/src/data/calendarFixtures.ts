@@ -1,4 +1,12 @@
-import { addDays, startOfDay, areIntervalsOverlapping } from 'date-fns';
+import {
+  addDays,
+  differenceInCalendarDays,
+  setHours,
+  setMinutes,
+  startOfDay,
+  startOfWeek,
+  areIntervalsOverlapping,
+} from 'date-fns';
 
 export type CalendarEvent = {
   id: string;
@@ -10,6 +18,89 @@ export type CalendarEvent = {
   allDay?: boolean;
 };
 
+/** Demo friends' schedules for the ISO week that contains `weekContaining`. */
+export function getCalendarFixture(weekContaining: Date = new Date()): CalendarEvent[] {
+  const monday = startOfWeek(startOfDay(weekContaining), { weekStartsOn: 1 });
+  const focusDay = Math.min(
+    6,
+    Math.max(0, differenceInCalendarDays(startOfDay(weekContaining), monday))
+  );
+
+  const at = (d: number, h: number, m: number) =>
+    setMinutes(setHours(addDays(monday, d), h), m);
+
+  return [
+    {
+      id: 'me-1',
+      title: 'Deep Work: Design System',
+      start: at(focusDay, 9, 0),
+      end: at(focusDay, 11, 0),
+      ownerId: 'me',
+      ownerName: 'You',
+    },
+    {
+      id: 'zachary-1',
+      title: 'Writing sprint',
+      start: at(focusDay, 9, 30),
+      end: at(focusDay, 11, 0),
+      ownerId: 'zachary',
+      ownerName: 'Zachary',
+    },
+    {
+      id: 'me-2',
+      title: 'Team standup',
+      start: at(focusDay, 11, 30),
+      end: at(focusDay, 12, 0),
+      ownerId: 'me',
+      ownerName: 'You',
+    },
+    {
+      id: 'candy-1',
+      title: 'Code review block',
+      start: at(focusDay, 11, 0),
+      end: at(focusDay, 12, 30),
+      ownerId: 'candy',
+      ownerName: 'Candy',
+    },
+    {
+      id: 'me-3',
+      title: 'Focus block: code review',
+      start: at(focusDay, 14, 0),
+      end: at(focusDay, 16, 0),
+      ownerId: 'me',
+      ownerName: 'You',
+    },
+    {
+      id: 'andy-1',
+      title: 'Pair study — algorithms',
+      start: at(focusDay, 14, 30),
+      end: at(focusDay, 15, 45),
+      ownerId: 'andy',
+      ownerName: 'Andy',
+    },
+    {
+      id: 'me-4',
+      title: 'Reading',
+      start: at(2, 10, 0),
+      end: at(2, 11, 30),
+      ownerId: 'me',
+      ownerName: 'You',
+    },
+    {
+      id: 'travis-1',
+      title: 'Cafe study',
+      start: at(2, 10, 45),
+      end: at(2, 12, 0),
+      ownerId: 'travis',
+      ownerName: 'Travis',
+    },
+  ];
+}
+
+export function getFriendFixtures(weekContaining: Date = new Date()): CalendarEvent[] {
+  return getCalendarFixture(weekContaining).filter((e) => e.ownerId !== 'me');
+}
+
 export function eventsForDay(day: Date, all: CalendarEvent[]): CalendarEvent[] {
   const start = startOfDay(day);
   const end = addDays(start, 1);
@@ -18,6 +109,7 @@ export function eventsForDay(day: Date, all: CalendarEvent[]): CalendarEvent[] {
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
+/** Friends on a different event whose interval overlaps yours (co-check-in). */
 export function coClimbingNames(event: CalendarEvent, all: CalendarEvent[]): string[] {
   if (event.ownerId !== 'me') return [];
   const names = new Set<string>();
@@ -27,7 +119,7 @@ export function coClimbingNames(event: CalendarEvent, all: CalendarEvent[]): str
       areIntervalsOverlapping(
         { start: event.start, end: event.end },
         { start: other.start, end: other.end },
-        { inclusive: true },
+        { inclusive: true }
       )
     ) {
       names.add(other.ownerName);

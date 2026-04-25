@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { MiniMountain } from "./MiniMountain";
-import { getUserName } from "../../lib/auth";
 import { getSessionOutcomes } from "../../lib/compcal-state";
 
 type TimeFilter = 'today' | 'week' | 'month';
@@ -15,6 +14,41 @@ interface Friend {
   is_active: boolean;
 }
 
+const demoFriends: Friend[] = [
+  {
+    user_id: "zachary-demo",
+    name: "Zachary",
+    avatar_url: null,
+    last_event_title: "Deep Work: Systems Design",
+    last_session_started_at: new Date().toISOString(),
+    is_active: true,
+  },
+  {
+    user_id: "candy-demo",
+    name: "Candy",
+    avatar_url: null,
+    last_event_title: "EEG Analysis Block",
+    last_session_started_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    is_active: true,
+  },
+  {
+    user_id: "andy-demo",
+    name: "Andy",
+    avatar_url: null,
+    last_event_title: "Pair Study — Algorithms",
+    last_session_started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    is_active: false,
+  },
+  {
+    user_id: "travis-demo",
+    name: "Travis",
+    avatar_url: null,
+    last_event_title: "Reading Sprint",
+    last_session_started_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    is_active: false,
+  },
+];
+
 export function FriendsScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +56,8 @@ export function FriendsScreen() {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [apiUnavailable, setApiUnavailable] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
   const latestBuddyCompletion = getSessionOutcomes().find((s) => Boolean(s.buddyName));
 
@@ -29,15 +65,21 @@ export function FriendsScreen() {
     fetch('/api/friends/list')
       .then(async (r) => {
         if (r.status === 401) { setNeedsAuth(true); setLoading(false); return; }
+        if (!r.ok) throw new Error(`friends_list_${r.status}`);
         const data = await r.json();
         setFriends(data.friends ?? []);
+        setApiUnavailable(false);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {
+        setApiUnavailable(true);
+        setLoading(false);
+      });
   }, []);
 
   async function handleInvite() {
     setInviting(true);
+    setInviteError(null);
     try {
       const res = await fetch('/api/friends/invite', { method: 'POST' });
       const data = await res.json();
@@ -49,6 +91,7 @@ export function FriendsScreen() {
       setInviteLink(data.link);
     } catch (err) {
       console.error('[invite]', err);
+      setInviteError('Invite API unavailable right now. Demo friends remain visible.');
     } finally {
       setInviting(false);
     }
@@ -61,8 +104,10 @@ export function FriendsScreen() {
     setTimeout(() => setCopying(false), 2000);
   }
 
-  const activeFriends = friends.filter((f) => f.is_active);
-  const topThree = friends.slice(0, 3);
+  const shouldUseDemoFriends = !loading && !needsAuth && friends.length === 0;
+  const visibleFriends = shouldUseDemoFriends ? demoFriends : friends;
+  const activeFriends = visibleFriends.filter((f) => f.is_active);
+  const topThree = visibleFriends.slice(0, 3);
 
   return (
     <div className="px-6 pt-12 pb-6">
@@ -98,6 +143,15 @@ export function FriendsScreen() {
           >
             {copying ? 'Copied!' : 'Copy link'}
           </button>
+        </div>
+      )}
+
+      {inviteError && (
+        <div
+          className="mb-4 border border-coral/40 bg-coral/10 px-4 py-3"
+          style={{ borderRadius: '12px' }}
+        >
+          <p className="text-[12px] text-coral">{inviteError}</p>
         </div>
       )}
 
@@ -155,15 +209,19 @@ export function FriendsScreen() {
             />
           ))}
         </div>
-      ) : friends.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-warm-gray mb-2" style={{ fontSize: '16px' }}>No friends yet.</p>
-          <p className="text-warm-gray" style={{ fontSize: '14px' }}>
-            Tap "+ Invite" to share a link and bring someone on the mountain.
-          </p>
-        </div>
       ) : (
         <>
+          {shouldUseDemoFriends && (
+            <div
+              className="mb-4 border border-border bg-card/60 px-4 py-3"
+              style={{ borderRadius: '12px' }}
+            >
+              <p className="text-warm-gray" style={{ fontSize: '13px' }}>
+                Showing demo friends. {apiUnavailable ? 'Live friends API is unavailable right now.' : 'Use + Invite to connect real friends.'}
+              </p>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2 mb-4">
             {(['today', 'week', 'month'] as TimeFilter[]).map((filter) => (
               <button
@@ -183,7 +241,7 @@ export function FriendsScreen() {
           </div>
 
           <div className="space-y-3">
-            {friends.map((friend) => (
+            {visibleFriends.map((friend) => (
               <div
                 key={friend.user_id}
                 className="p-4 bg-card border border-border"

@@ -57,43 +57,43 @@ export function WelcomeScreen() {
           >
             <defs>
               <linearGradient id={skyId} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#F4D8BA" />
-                <stop offset="100%" stopColor="#FBF2E4" />
+                <stop offset="0%" stopColor="#1A2A3B" />
+                <stop offset="100%" stopColor="#0F1E2D" />
               </linearGradient>
             </defs>
             <rect width="100" height="100" fill={`url(#${skyId})`} />
 
             <path
               d="M -5 78 L 12 55 L 22 58 L 18 100 L -5 100 Z"
-              fill="#4A6B54"
+              fill="#5B6D77"
               opacity="0.32"
             />
             <path
               d="M 78 72 L 92 48 L 100 52 L 100 100 L 72 100 Z"
-              fill="#4A6B54"
+              fill="#5B6D77"
               opacity="0.28"
             />
 
             <path
               d="M 0 88 Q 18 62 32 58 L 38 48 Q 46 36 54 28 L 62 18 Q 66 10 70 8 L 74 12 Q 78 20 82 26 L 88 38 Q 94 52 100 62 L 100 100 L 0 100 Z"
-              fill="#4A6B54"
+              fill="#2B4353"
               opacity="0.92"
             />
             <path
               d="M 62 18 Q 66 10 70 8 L 74 12 Q 76 14 77 16 L 72 22 L 64 24 Z"
-              fill="#FDFBF7"
+              fill="#E7EEF4"
               opacity="0.92"
             />
             <path
               d="M 52 28 Q 58 22 64 24 L 68 30 Q 62 38 56 42 Q 54 36 52 28 Z"
-              fill="#FDFBF7"
+              fill="#D9E4ED"
               opacity="0.75"
             />
 
             <path
               d="M 48 92 L 46 84 L 50 76 L 48 68 L 52 58 L 50 48 L 54 38 L 52 28 L 56 18 L 58 12 L 62 8"
               fill="none"
-              stroke="#FDFBF7"
+              stroke="#D9E4ED"
               strokeWidth="0.35"
               strokeDasharray="1.2 1.4"
               opacity="0.55"

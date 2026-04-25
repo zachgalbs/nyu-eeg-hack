@@ -8,6 +8,12 @@ interface MountainSVGProps {
   showTrail?: boolean;
   trailOnly?: boolean;
   isPaused?: boolean;
+  friendClimbers?: Array<{ id: string; name: string; progress: number; color?: string }>;
+  throwProjectile?: {
+    fromProgress: number;
+    toProgress: number;
+    active: boolean;
+  } | null;
 }
 
 const PX = 2;
@@ -31,7 +37,7 @@ const TERRAIN_STEPS: [number, number][] = [
 ];
 
 // Compute cat position ON the terrain surface with slope angle
-function getTerrainPosition(progress: number) {
+export function getTerrainPosition(progress: number) {
   const p = Math.max(0, Math.min(100, progress));
   const startX = 4;
   const endX = 92;
@@ -68,15 +74,15 @@ const ROCKS: { x: number; y: number }[] = [
 ];
 
 // Rain
-const RAIN = Array.from({ length: 40 }, (_, i) => ({
+const RAIN = Array.from({ length: 24 }, (_, i) => ({
   x: seeded(i * 7 + 100) * 110 - 5,
   y: seeded(i * 11 + 200) * 110 - 10,
   len: 3 + seeded(i * 13 + 300) * 6,
-  opacity: 0.12 + seeded(i * 17 + 400) * 0.15,
+  opacity: 0.06 + seeded(i * 17 + 400) * 0.1,
 }));
 
 // Snowflakes
-const SNOWFLAKES = Array.from({ length: 25 }, (_, i) => ({
+const SNOWFLAKES = Array.from({ length: 18 }, (_, i) => ({
   x: seeded(i * 7 + 1) * 100,
   delay: seeded(i * 13 + 2) * 6,
   dur: 5 + seeded(i * 17 + 3) * 6,
@@ -125,9 +131,9 @@ function DarkRock({ x, y }: { x: number; y: number }) {
 }
 
 // Inline SVG cat that follows terrain slope
-function TerrainCat({ progress }: { progress: number }) {
+function TerrainCat({ progress, isPaused = false }: { progress: number; isPaused?: boolean }) {
   const [frame, setFrame] = useState(0);
-  const isWalking = progress < 100;
+  const isWalking = progress < 100 && !isPaused;
 
   useEffect(() => {
     if (!isWalking) return;
@@ -139,19 +145,22 @@ function TerrainCat({ progress }: { progress: number }) {
   const pos = getTerrainPosition(progress);
   const cols = sprite[0].length;
   const rows = sprite.length;
-  const scale = 0.65;
+  const scale = 0.82;
 
   return (
     <g transform={`translate(${pos.x}, ${pos.y}) rotate(${pos.angle})`}>
       {/* Bobbing motion perpendicular to slope */}
       <g>
-        <animateTransform
-          attributeName="transform"
-          type="translate"
-          values="0,0; 0,-0.8; 0,0"
-          dur="0.5s"
-          repeatCount="indefinite"
-        />
+        {!isPaused && (
+          <animateTransform
+            attributeName="transform"
+            type="translate"
+            values="0,0; 0,-0.5; 0,0"
+            dur="0.55s"
+            repeatCount="indefinite"
+          />
+        )}
+        <ellipse cx={0} cy={0.6} rx={2.2} ry={0.55} fill="#0D1218" opacity="0.4" />
         {/* Scale and center — feet at origin */}
         <g transform={`scale(${scale}) translate(${-cols / 2}, ${-rows})`}>
           {sprite.map((row, ry) =>
@@ -170,7 +179,13 @@ function TerrainCat({ progress }: { progress: number }) {
 export function MountainSVG({
   progress,
   showTrail = true,
+  isPaused = false,
+  friendClimbers = [],
+  throwProjectile = null,
 }: MountainSVGProps) {
+  const projectileFrom = throwProjectile ? getTerrainPosition(throwProjectile.fromProgress) : null;
+  const projectileTo = throwProjectile ? getTerrainPosition(throwProjectile.toProgress) : null;
+
   return (
     <div className="relative w-full h-full">
       <svg
@@ -299,8 +314,40 @@ export function MountainSVG({
           </rect>
         ))}
 
+        {friendClimbers.map((friend) => {
+          const marker = getTerrainPosition(friend.progress);
+          return (
+            <g key={friend.id} transform={`translate(${marker.x}, ${marker.y - 1.4})`}>
+              <circle r={1.5} fill={friend.color || "#7fb3d8"} opacity="0.95" />
+              <circle r={0.6} cy={-0.3} fill="#f1f5f9" opacity="0.9" />
+              <text
+                x={2}
+                y={-1}
+                fill="#d9e6f2"
+                style={{ fontSize: "2.2px", fontFamily: "var(--font-mono)" }}
+              >
+                {friend.name.slice(0, 1).toUpperCase()}
+              </text>
+            </g>
+          );
+        })}
+
+        {throwProjectile?.active && projectileFrom && projectileTo ? (
+          <g>
+            <circle r={0.95} fill="#ffb36a" opacity="0.95">
+              <animateMotion
+                dur="650ms"
+                repeatCount="1"
+                fill="freeze"
+                path={`M ${projectileFrom.x} ${projectileFrom.y - 1.6} L ${projectileTo.x} ${projectileTo.y - 1.6}`}
+              />
+              <animate attributeName="r" values="0.8;1.1;0.8" dur="650ms" repeatCount="1" />
+            </circle>
+          </g>
+        ) : null}
+
         {/* Cat — rendered inline in SVG, follows terrain slope */}
-        <TerrainCat progress={progress} />
+        <TerrainCat progress={progress} isPaused={isPaused} />
       </svg>
     </div>
   );

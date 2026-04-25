@@ -86,6 +86,20 @@ export function ProfileScreen() {
     }
   };
 
+  const manageNotifications = () => {
+    const nextEnabled = !prefs.focusChecksEnabled;
+    const confirmed = window.confirm(
+      `${nextEnabled ? "Enable" : "Disable"} focus-check notifications?`
+    );
+    if (!confirmed) return;
+    const next = updatePrefs({ focusChecksEnabled: nextEnabled });
+    setPrefs(next);
+  };
+
+  const openHelpFeedback = () => {
+    window.open("https://github.com/candpixie/nyu-eeg-hack-1/issues/new", "_blank", "noopener");
+  };
+
   const signOut = () => {
     const confirmed = window.confirm("Sign out of CompCal on this device?");
     if (!confirmed) return;
@@ -103,13 +117,22 @@ export function ProfileScreen() {
   };
 
   return (
-    <div className="px-6 pt-10 pb-6">
-      <h1
-        className="mb-6 text-ink"
-        style={{ fontFamily: "var(--font-serif)", fontSize: "32px" }}
-      >
-        Profile
-      </h1>
+    <div className="px-6 pt-10 pb-28 sm:pb-32">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <h1
+          className="text-ink"
+          style={{ fontFamily: "var(--font-serif)", fontSize: "32px" }}
+        >
+          Profile
+        </h1>
+        <button
+          type="button"
+          onClick={() => navigate("/calendar")}
+          className="rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs font-semibold text-foreground transition-opacity hover:opacity-85"
+        >
+          Back to calendar
+        </button>
+      </div>
 
       <section className="mb-8 overflow-hidden rounded-2xl border border-border bg-card/90 p-6 shadow-[var(--shadow-card)]">
         <div className="flex flex-col items-center text-center sm:flex-row sm:text-left">
@@ -189,6 +212,7 @@ export function ProfileScreen() {
             icon={<Bell className="h-4 w-4" strokeWidth={2} />}
             label="Notifications"
             hint="Focus checks, friend activity"
+            onClick={manageNotifications}
           />
           <div className="mx-3 h-px bg-border" />
           <button
@@ -225,6 +249,8 @@ export function ProfileScreen() {
           <SettingsRow
             icon={<HelpCircle className="h-4 w-4" strokeWidth={2} />}
             label="Help & feedback"
+            hint="Open issue tracker"
+            onClick={openHelpFeedback}
           />
           <div className="mx-3 h-px bg-border" />
           <button

@@ -5,6 +5,13 @@
 - [`MountainScreen.tsx`](../src/app/components/MountainScreen.tsx) runs a **mock** periodic check on a fixed interval (short for demo) and random “verified / distracted” outcomes.
 - No images are captured; no third-party APIs are called.
 - Users can toggle checks on/off in-app, and enable a **low-pressure mode** that softens nudges and disables roast behavior.
+- Roast behavior is now **hybrid-triggered**:
+  - `auto`: repeated distracted checks can trigger an accountability roast modal.
+  - `friend_throw`: when a climber is ahead by focus-score rule, they can throw a roast at another climber.
+- Cross-screen delivery path:
+  1. BroadcastChannel (fast two-tab demo path),
+  2. `/api/roasts/throw` persistence,
+  3. `/api/roasts/inbox` polling (2.5s) for unread events.
 
 ## Intended product behavior
 

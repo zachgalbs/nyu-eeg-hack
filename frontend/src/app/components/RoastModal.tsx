@@ -2,29 +2,29 @@ import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Volume2 } from "lucide-react";
 
-const roasts = [
-  "put the phone down, soldier. your ancestors didn't survive wars for you to scroll tiktok.",
-  "three distractions in ten minutes? your goldfish has better focus.",
-  "every time you check instagram, a productive person gets their wings.",
-  "distracted again? at this rate you'll summit next year.",
-  "focus is free. you're choosing to be broke.",
-];
+type RoastTrigger = "auto" | "friend_throw";
 
 interface RoastModalProps {
   onClose: () => void;
-  friends?: string[];
+  roastText: string;
+  trigger: RoastTrigger;
+  fromName?: string;
 }
 
-export function RoastModal({ onClose, friends = [] }: RoastModalProps) {
+export function RoastModal({ onClose, roastText, trigger, fromName }: RoastModalProps) {
   const [displayedText, setDisplayedText] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
-  const roast = roasts[Math.floor(Math.random() * roasts.length)];
+  const title = trigger === "friend_throw" ? "friend throw landed" : "caught slacking";
+  const contextLine =
+    trigger === "friend_throw"
+      ? `sent by ${fromName || "a friend"}`
+      : "auto check triggered by repeated distraction";
 
   useEffect(() => {
     let currentIndex = 0;
     const typewriterInterval = setInterval(() => {
-      if (currentIndex < roast.length) {
-        setDisplayedText(roast.slice(0, currentIndex + 1));
+      if (currentIndex < roastText.length) {
+        setDisplayedText(roastText.slice(0, currentIndex + 1));
         currentIndex++;
       } else {
         clearInterval(typewriterInterval);
@@ -33,7 +33,7 @@ export function RoastModal({ onClose, friends = [] }: RoastModalProps) {
     }, 40);
 
     return () => clearInterval(typewriterInterval);
-  }, [roast]);
+  }, [roastText]);
 
   return (
     <motion.div
@@ -61,7 +61,7 @@ export function RoastModal({ onClose, friends = [] }: RoastModalProps) {
             fontWeight: 400,
           }}
         >
-          caught slacking
+          {title}
         </h1>
 
         <p
@@ -82,7 +82,7 @@ export function RoastModal({ onClose, friends = [] }: RoastModalProps) {
             fontSize: '13px',
           }}
         >
-          {friends.length > 0 ? `shared with ${friends.join(', ')}` : 'your friends will see this'}
+          {contextLine}
         </p>
 
         <div className="space-y-3">
