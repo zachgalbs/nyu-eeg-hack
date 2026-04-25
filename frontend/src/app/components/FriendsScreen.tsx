@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { MiniMountain } from "./MiniMountain";
+import { getSessionOutcomes } from "../../lib/compcal-state";
 
 interface Friend {
   id: number;
@@ -60,6 +61,7 @@ type TimeFilter = 'today' | 'week' | 'month';
 
 export function FriendsScreen() {
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
+  const latestBuddyCompletion = getSessionOutcomes().find((s) => Boolean(s.buddyName));
 
   const sortedFriends = [...friendsData].sort((a, b) => {
     if (a.status === 'climbing' && b.status !== 'climbing') return -1;
@@ -76,6 +78,18 @@ export function FriendsScreen() {
       <h1 className="mb-8" style={{ fontFamily: 'var(--font-serif)', fontSize: '32px' }}>
         Friends
       </h1>
+
+      {latestBuddyCompletion ? (
+        <div
+          className="mb-4 border border-moss/50 bg-moss/10 px-4 py-3"
+          style={{ borderRadius: '12px' }}
+        >
+          <p className="text-[12px] text-moss">
+            Buddy check-in complete: you and {latestBuddyCompletion.buddyName} finished{' '}
+            {latestBuddyCompletion.eventTitle}.
+          </p>
+        </div>
+      ) : null}
 
       <div
         className="bg-card p-6 mb-6 border border-border"
