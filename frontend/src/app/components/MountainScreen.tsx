@@ -776,7 +776,7 @@ export function MountainScreen() {
               </div>
             </div>
           </div>
-          <div className="mt-auto w-full">
+          <div className="mt-auto mb-6 w-full">
             <div className="flex items-stretch rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] backdrop-blur-md">
               <div className="min-w-0 flex-1 p-4">
 
