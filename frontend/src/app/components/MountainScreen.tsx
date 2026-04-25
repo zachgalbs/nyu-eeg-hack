@@ -136,6 +136,7 @@ export function MountainScreen() {
     } as const;
     v.src = srcs[bgMode as keyof typeof srcs];
     v.loop = bgMode === 'climbing';
+    v.muted = bgMode === 'climbing';
     v.load();
     v.play().catch(() => {});
   }, [bgMode]);
@@ -572,7 +573,6 @@ export function MountainScreen() {
       <video
         ref={snowballVideoRef}
         className={`pointer-events-none fixed inset-0 z-[60] h-full w-full object-cover transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
-        muted
         playsInline
         onEnded={() => setSnowballMode(null)}
       />
@@ -593,7 +593,6 @@ export function MountainScreen() {
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
             bgMode !== 'static' ? "opacity-100" : "opacity-0"
           }`}
-          muted
           playsInline
           onLoadedData={() => { if (!artReady) setArtReady(true); }}
           onEnded={() => {
