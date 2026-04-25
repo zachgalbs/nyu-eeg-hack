@@ -94,6 +94,8 @@ export function MountainScreen() {
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
+  const [snowballMode, setSnowballMode] = useState<'throw' | 'hit' | null>(null);
+  const snowballVideoRef = useRef<HTMLVideoElement>(null);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
   // Background video state
@@ -131,6 +133,16 @@ export function MountainScreen() {
     v.load();
     v.play().catch(() => {});
   }, [bgMode]);
+  useEffect(() => {
+    const v = snowballVideoRef.current;
+    if (!v || !snowballMode) return;
+    v.src = snowballMode === 'throw'
+      ? '/media/Cat_throws_snowball.mp4'
+      : '/media/Cat_hit_by_snowball.mp4';
+    v.load();
+    v.play().catch(() => {});
+  }, [snowballMode]);
+
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
     const id = window.setInterval(() => {
@@ -382,6 +394,7 @@ export function MountainScreen() {
     const unsubscribe = subscribeRoasts((payload) => {
       if (payload.toUserId !== localUserId && payload.toUserId !== "broadcast") return;
       if (payload.fromUserId === localUserId) return;
+      if (payload.trigger === 'friend_throw') setSnowballMode('hit');
       setActiveRoast({
         text: payload.roastText,
         trigger: payload.trigger,
@@ -398,6 +411,7 @@ export function MountainScreen() {
         const inboxEvents = await pollRoastInbox();
         const incoming = inboxEvents.find((event) => event.toUserId === localUserId);
         if (!incoming) return;
+        if (incoming.trigger === 'friend_throw') setSnowballMode('hit');
         setActiveRoast({
           text: incoming.roastText,
           trigger: incoming.trigger,
@@ -411,6 +425,7 @@ export function MountainScreen() {
   const throwAtFriend = async () => {
     if (!throwTarget || !canThrow) return;
     setIsThrowing(true);
+    setSnowballMode('throw');
     const targetProgress = friendClimbers.find((friend) => friend.id === String(throwTarget.id))?.progress ?? progress;
     setProjectile({ fromProgress: progress, toProgress: targetProgress, active: true });
     window.setTimeout(() => setProjectile(null), 700);
@@ -669,7 +684,7 @@ export function MountainScreen() {
             artReady ? "opacity-100" : "opacity-0"
           }`}>
             <div
-              className="overflow-hidden rounded-2xl border-2 border-border/40"
+              className="relative overflow-hidden rounded-2xl border-2 border-border/40"
               style={{
                 width: "min(88vw, 560px)",
                 height: "min(42vh, 390px)",
@@ -685,6 +700,13 @@ export function MountainScreen() {
                 friendClimbers={friendClimbers}
                 throwProjectile={projectile}
               />
+              <video
+                ref={snowballVideoRef}
+                className={`pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
+                muted
+                playsInline
+                onEnded={() => setSnowballMode(null)}
+              />
             </div>
           </div>
 
@@ -695,15 +717,24 @@ export function MountainScreen() {
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
                   <div className="flex items-center gap-4">
                     <div
-                      className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
+                      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mountain/50 text-[10px] text-foreground"
                       style={{ width: 80, height: 60 }}
                     >
-                      <div className="text-center">
-                        <div
-                          className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
-                        />
-                        {isPaused ? "PAUSED" : "LIVE"}
-                      </div>
+                      {debugImage ? (
+                        <>
+                          <img src={debugImage} alt="Captured frame" className="absolute inset-0 h-full w-full object-cover" />
+                          <div className="absolute inset-0 flex items-end justify-center pb-1">
+                            <span className="rounded bg-black/50 px-1 text-[9px] text-white">{isPaused ? "PAUSED" : "LIVE"}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center">
+                          <div
+                            className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
+                          />
+                          {isPaused ? "PAUSED" : "LIVE"}
+                        </div>
+                      )}
                     </div>
 
                     <div className="min-w-0 flex-1">
@@ -743,13 +774,6 @@ export function MountainScreen() {
                       </button>
                       {debugError && (
                         <p className="mt-1 text-[10px] text-coral">{debugError}</p>
-                      )}
-                      {debugImage && (
-                        <img
-                          src={debugImage}
-                          alt="Captured frame"
-                          className="mt-2 h-16 w-20 rounded object-cover opacity-80"
-                        />
                       )}
                     </div>
                   </div>
