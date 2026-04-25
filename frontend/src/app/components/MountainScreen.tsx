@@ -252,17 +252,26 @@ export function MountainScreen() {
         />
 
         <div
-          className={`absolute inset-0 transition-opacity duration-500 ${
+          className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${
             artReady ? "opacity-100" : "opacity-0"
           }`}
         >
-          <MountainSVG
-            progress={progress}
-            climberName="You"
-            climberColor="#c4b5e8"
-            trailOnly
-            isPaused={!hasCheckedIn || isPaused}
-          />
+          <div
+            className="overflow-hidden rounded-2xl border-2 border-border/40"
+            style={{
+              width: "min(85vw, 360px)",
+              height: "min(85vw, 360px)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+            }}
+          >
+            <MountainSVG
+              progress={progress}
+              climberName="You"
+              climberColor="#c4b5e8"
+              trailOnly
+              isPaused={!hasCheckedIn || isPaused}
+            />
+          </div>
         </div>
 
         <div className="absolute top-0 left-0 right-0 z-10 flex justify-center px-4 pt-4 sm:px-6">

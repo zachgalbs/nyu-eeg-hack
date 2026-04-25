@@ -1,66 +1,80 @@
 import { useState, useEffect } from "react";
 
-// Color palette matching the app's warm theme
-const C: Record<string, string> = {
-  o: "#E8944A", // orange fur
-  l: "#F4A460", // light orange
-  d: "#C67030", // dark stripe
-  k: "#2D2D2D", // black
-  w: "#FFFFFF", // white
-  p: "#FFB6C1", // pink
+// Dark cat with purple edge-lighting for visibility
+export const CAT_COLORS: Record<string, string> = {
+  b: "#2A1E2A", // dark body
+  e: "#6A4A7A", // edge outline (purple tint)
+  y: "#E8C840", // amber eye
+  Y: "#F0D860", // bright eye center
+  w: "#FFFFFF", // white eye shine
+  h: "#7B5EA7", // harness purple
+  r: "#C8A050", // rope gold
+  g: "#6B6060", // boot gray
+  p: "#7A4A6A", // inner ear pink
+  m: "#E8B0C0", // nose pink
+  t: "#4A3050", // tail
   ".": "",
 };
 
-// 14x13 pixel cat sprite, side view facing right
-// Walking frame 1 (compact stride)
-const WALK1 = [
-  "..oo......oo..",
-  ".olpo....olpo.",
-  ".oooooooooooo.",
-  ".owkoooooowko.",
-  ".oooooooooooo.",
-  "..oooopoooo...",
-  "...oooooooo...",
-  "..oooooooooo..",
-  ".ooddooooddoo.",
-  ".oooooooooooo.",
-  ".ooooooooooo.t",
-  "..oo....oo..tt",
-  "..oo....oo...t",
+// 16x16 sprite — 3/4 view head (both eyes!) + side body
+// Big head, pointy ears, narrow neck, compact body, curving tail
+// This reads as CAT from the silhouette alone
+
+export const WALK1 = [
+  "....ee.ee.......",
+  "...ebbe.ebbe....",
+  "...ebpe.epbe....",
+  "..ebbbbbbbbbe...",
+  ".ebbbbbbbbbbe...",
+  ".ebyYbbbYybbe...",
+  ".ebywbbbwybbe...",
+  ".ebbbbmbbbbbe...",
+  "..ebbbbbbbbe....",
+  "...ebhhhbbe.....",
+  "..ebbbbbbbbe....",
+  "..ebbbbbbbbet...",
+  "...ebe..ebe.t...",
+  "...ege..ege..t..",
+  "....ge..eg......",
+  "................",
 ];
 
-// Walking frame 2 (wide stride)
-const WALK2 = [
-  "..oo......oo..",
-  ".olpo....olpo.",
-  ".oooooooooooo.",
-  ".owkoooooowko.",
-  ".oooooooooooo.",
-  "..oooopoooo...",
-  "...oooooooo...",
-  "..oooooooooo..",
-  ".ooddooooddoo.",
-  ".oooooooooooo.",
-  ".ooooooooooo.t",
-  ".oo......oo.tt",
-  "..o.......o..t",
+export const WALK2 = [
+  "....ee.ee.......",
+  "...ebbe.ebbe....",
+  "...ebpe.epbe....",
+  "..ebbbbbbbbbe...",
+  ".ebbbbbbbbbbe...",
+  ".ebyYbbbYybbe...",
+  ".ebywbbbwybbe...",
+  ".ebbbbmbbbbbe...",
+  "..ebbbbbbbbe....",
+  "...ebhhhbbe.....",
+  "..ebbbbbbbbe....",
+  "..ebbbbbbbbet...",
+  "..ebe....ebe.t..",
+  "..ege....ege..t.",
+  "...ge....eg.....",
+  "................",
 ];
 
-// Idle frame (sitting, tail curled)
-const IDLE = [
-  "..oo......oo..",
-  ".olpo....olpo.",
-  ".oooooooooooo.",
-  ".owkoooooowko.",
-  ".oooooooooooo.",
-  "..oooopoooo...",
-  "...oooooooo...",
-  "..oooooooooo..",
-  ".ooddooooddoo.",
-  ".oooooooooooo.",
-  ".ooooooooooo.t",
-  "...oo..oo..ttt",
-  "...oo..oo.....",
+export const IDLE = [
+  "....ee.ee.......",
+  "...ebbe.ebbe....",
+  "...ebpe.epbe....",
+  "..ebbbbbbbbbe...",
+  ".ebbbbbbbbbbe...",
+  ".ebbwbbbwbbbe...",
+  ".ebbbbbbbbbbe...",
+  ".ebbbbmbbbbbe...",
+  "..ebbbbbbbbe....",
+  "...ebhhhbbe.....",
+  "..ebbbbbbbbe....",
+  "..ebbbbbbbbett..",
+  "....ebe.ebe.t...",
+  "....ege.ege.....",
+  ".....ge.eg......",
+  "................",
 ];
 
 interface PixelCatProps {
@@ -69,14 +83,12 @@ interface PixelCatProps {
   flipX?: boolean;
 }
 
-export function PixelCat({ size = 48, isWalking = true, flipX = false }: PixelCatProps) {
+export function PixelCat({ size = 64, isWalking = true, flipX = false }: PixelCatProps) {
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
     if (!isWalking) return;
-    const interval = setInterval(() => {
-      setFrame((f) => (f + 1) % 2);
-    }, 300);
+    const interval = setInterval(() => setFrame((f) => (f + 1) % 2), 280);
     return () => clearInterval(interval);
   }, [isWalking]);
 
@@ -102,18 +114,9 @@ export function PixelCat({ size = 48, isWalking = true, flipX = false }: PixelCa
       >
         {sprite.map((row, y) =>
           row.split("").map((char, x) => {
-            const color = C[char];
+            const color = CAT_COLORS[char];
             if (!color) return null;
-            return (
-              <rect
-                key={`${x}-${y}`}
-                x={x}
-                y={y}
-                width={1}
-                height={1}
-                fill={color}
-              />
-            );
+            return <rect key={`${x}-${y}`} x={x} y={y} width={1} height={1} fill={color} />;
           })
         )}
       </svg>
