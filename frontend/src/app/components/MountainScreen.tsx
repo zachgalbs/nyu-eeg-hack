@@ -456,7 +456,10 @@ export function MountainScreen() {
     const unsubscribe = subscribeRoasts((payload) => {
       if (payload.toUserId !== localUserId && payload.toUserId !== "broadcast") return;
       if (payload.fromUserId === localUserId) return;
-      if (payload.trigger === 'friend_throw') setSnowballMode('hit');
+      if (payload.trigger === 'friend_throw') {
+        setSnowballMode('hit');
+        return;
+      }
       setActiveRoast({
         text: payload.roastText,
         trigger: payload.trigger,
@@ -473,7 +476,10 @@ export function MountainScreen() {
         const inboxEvents = await pollRoastInbox();
         const incoming = inboxEvents.find((event) => event.toUserId === localUserId);
         if (!incoming) return;
-        if (incoming.trigger === 'friend_throw') setSnowballMode('hit');
+        if (incoming.trigger === 'friend_throw') {
+          setSnowballMode('hit');
+          return;
+        }
         setActiveRoast({
           text: incoming.roastText,
           trigger: incoming.trigger,
