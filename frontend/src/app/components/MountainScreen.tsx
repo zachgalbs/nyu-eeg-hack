@@ -326,31 +326,24 @@ export function MountainScreen() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <div
-                className="mb-1 text-foreground tabular-nums"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "24px",
-                  fontWeight: 600,
-                }}
-              >
-                {focusScore}% focused
-              </div>
               <div className="flex items-center gap-2">
                 <div
-                  className={`h-2 w-2 shrink-0 rounded-full ${
+                  className={`h-3 w-3 shrink-0 rounded-full ${
                     lastCheck === "verified" ? "bg-moss" : "bg-coral"
                   }`}
                 />
-                <span className="text-muted" style={{ fontSize: "13px" }}>
-                  {lastCheck === "verified" ? "focused" : "distracted"}
-                  {lastRawScore !== null && (
-                    <span className="ml-2 opacity-60">
-                      (Claude: {lastRawScore.toFixed(2)})
-                    </span>
-                  )}
+                <span
+                  className="text-foreground"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: "20px", fontWeight: 600 }}
+                >
+                  {lastCheck === "verified" ? "focused" : "not focused"}
                 </span>
               </div>
+              {lastRawScore !== null && (
+                <p className="mt-1 text-muted" style={{ fontSize: "12px" }}>
+                  Claude score: {lastRawScore.toFixed(2)} (≥0.5 = distracted)
+                </p>
+              )}
             </div>
           </div>
         </div>
