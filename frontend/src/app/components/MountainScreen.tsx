@@ -87,6 +87,9 @@ export function MountainScreen() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [uiVisible, setUiVisible] = useState(true);
+  const [debugImage, setDebugImage] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [debugError, setDebugError] = useState<string | null>(null);
   const [artReady, setArtReady] = useState(false);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
@@ -184,9 +187,8 @@ export function MountainScreen() {
     buddyCommitment?.buddyName,
   ]);
 
-  // Start webcam when session begins, stop on cleanup
+  // Start webcam on mount so debug check works immediately
   useEffect(() => {
-    if (!hasCheckedIn) return;
     let stream: MediaStream | null = null;
     navigator.mediaDevices.getUserMedia({ video: true, audio: false })
       .then((s) => {
@@ -198,7 +200,7 @@ export function MountainScreen() {
       })
       .catch(() => {});
     return () => { stream?.getTracks().forEach((t) => t.stop()); };
-  }, [hasCheckedIn]);
+  }, []);
 
   // Auto-hide UI after 4s of inactivity (only during active session)
   useEffect(() => {
@@ -223,22 +225,31 @@ export function MountainScreen() {
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) return false;
+    if (!video || !canvas) throw new Error('No camera element');
+    if (video.readyState < 2) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          video.removeEventListener('loadeddata', onLoaded);
+          reject(new Error('Camera not ready — allow camera access and try again'));
+        }, 6000);
+        const onLoaded = () => { clearTimeout(timer); resolve(); };
+        video.addEventListener('loadeddata', onLoaded, { once: true });
+      });
+    }
     canvas.width = video.videoWidth || 320;
     canvas.height = video.videoHeight || 240;
     canvas.getContext('2d')?.drawImage(video, 0, 0);
-    const imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
-    try {
-      const res = await fetch('/api/check-focus', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64, eventName: event.name }),
-      });
-      const { score } = await res.json();
-      return (score ?? 0) > 0.5;
-    } catch {
-      return false;
-    }
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    setDebugImage(dataUrl);
+    const imageBase64 = dataUrl.split(',')[1];
+    const res = await fetch('/api/check-focus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, eventName: event.name }),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const { score } = await res.json();
+    return (score ?? 0) > 0.5;
   }
 
   useEffect(() => {
@@ -246,7 +257,6 @@ export function MountainScreen() {
     const focusCheckInterval = window.setInterval(() => {
       captureAndCheck().then((isDistracted) => {
       const checkResult = isDistracted ? 'distracted' : 'verified';
-
       setLastCheck(checkResult);
       setToastType(checkResult);
       setShowToast(true);
@@ -275,7 +285,7 @@ export function MountainScreen() {
       }
 
         window.setTimeout(() => setShowToast(false), 2500);
-      });
+      }).catch(() => {});
     }, 60000);
 
     return () => window.clearInterval(focusCheckInterval);
@@ -710,17 +720,37 @@ export function MountainScreen() {
                       ) : null}
                       <button
                         type="button"
-                        onClick={() => captureAndCheck().then((isDistracted) => {
-                          const result = isDistracted ? 'distracted' : 'verified';
-                          setLastCheck(result);
-                          setToastType(result);
-                          setShowToast(true);
-                          window.setTimeout(() => setShowToast(false), 2500);
-                        })}
-                        className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-warm-gray transition-opacity hover:opacity-80"
+                        disabled={isChecking}
+                        onClick={async () => {
+                          setIsChecking(true);
+                          setDebugError(null);
+                          try {
+                            const isDistracted = await captureAndCheck();
+                            const result = isDistracted ? 'distracted' : 'verified';
+                            setLastCheck(result);
+                            setToastType(result);
+                            setShowToast(true);
+                            window.setTimeout(() => setShowToast(false), 2500);
+                          } catch (err) {
+                            setDebugError(err instanceof Error ? err.message : 'Check failed');
+                          } finally {
+                            setIsChecking(false);
+                          }
+                        }}
+                        className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-warm-gray transition-opacity hover:opacity-80 disabled:opacity-50"
                       >
-                        [debug] check now
+                        {isChecking ? 'Checking...' : '[debug] check now'}
                       </button>
+                      {debugError && (
+                        <p className="mt-1 text-[10px] text-coral">{debugError}</p>
+                      )}
+                      {debugImage && (
+                        <img
+                          src={debugImage}
+                          alt="Captured frame"
+                          className="mt-2 h-16 w-20 rounded object-cover opacity-80"
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
