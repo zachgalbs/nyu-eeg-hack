@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { ClimberAvatar } from "./ClimberAvatar";
 
@@ -12,6 +12,7 @@ interface MountainSVGProps {
    * pixel-art `snow-mountain-retro-theme.png` background.
    */
   trailOnly?: boolean;
+  isPaused?: boolean;
 }
 
 const trailPoints = [
@@ -73,10 +74,36 @@ export function MountainSVG({
   climberColor = "#C66B52",
   showTrail = true,
   trailOnly = false,
+  isPaused = false,
 }: MountainSVGProps) {
   const uid = useId().replace(/:/g, "");
   const skyGradId = `sky-${uid}`;
   const position = getPositionOnTrail(progress);
+  const lastProgressRef = useRef(progress);
+  const [isWalking, setIsWalking] = useState(false);
+  const idleTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const delta = Math.abs(progress - lastProgressRef.current);
+    const moved = delta > 0.15;
+    if (!isPaused && moved) {
+      setIsWalking(true);
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = window.setTimeout(() => {
+        setIsWalking(false);
+      }, 220);
+    } else if (isPaused) {
+      setIsWalking(false);
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    }
+    lastProgressRef.current = progress;
+  }, [progress, isPaused]);
+
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) window.clearTimeout(idleTimerRef.current);
+    };
+  }, []);
 
   const trailPath = trailPoints
     .map((point, i) => `${i === 0 ? "M" : "L"} ${point.x} ${point.y}`)
@@ -176,7 +203,7 @@ export function MountainSVG({
         style={{
           left: `${position.x}%`,
           top: `${position.y}%`,
-          transform: "translate(-50%, -50%)",
+          transform: trailOnly ? "translate(-54%, -76%)" : "translate(-50%, -50%)",
         }}
         initial={false}
         animate={{
@@ -188,12 +215,29 @@ export function MountainSVG({
           ease: [0.25, 0.1, 0.25, 1],
         }}
       >
-        <ClimberAvatar
-          name={climberName}
-          size={trailOnly ? 52 : 48}
-          color={climberColor}
-          variant={trailOnly ? "pixelCat" : "initial"}
-        />
+        <motion.div
+          animate={
+            isWalking
+              ? {
+                  y: [-1, 1, -1],
+                  rotate: [-0.6, 0.6, -0.6],
+                }
+              : { y: 0, rotate: 0 }
+          }
+          transition={{
+            duration: 0.55,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+          }}
+        >
+          <ClimberAvatar
+            name={climberName}
+            size={trailOnly ? 50 : 48}
+            color={climberColor}
+            variant={trailOnly ? "pixelCatWalk" : "initial"}
+            isMoving={isWalking}
+          />
+        </motion.div>
       </motion.div>
     </div>
   );

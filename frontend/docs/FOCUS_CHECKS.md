@@ -4,6 +4,7 @@
 
 - [`MountainScreen.tsx`](../src/app/components/MountainScreen.tsx) runs a **mock** periodic check on a fixed interval (short for demo) and random “verified / distracted” outcomes.
 - No images are captured; no third-party APIs are called.
+- Users can toggle checks on/off in-app, and enable a **low-pressure mode** that softens nudges and disables roast behavior.
 
 ## Intended product behavior
 
