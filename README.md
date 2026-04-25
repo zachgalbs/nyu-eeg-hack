@@ -314,7 +314,7 @@ We care about this problem because we are inside the target user group: students
 - Candy Xie - UI, frontend systems, storytelling
 - Travis Sim - backend
 - Andy Li - design, pitch
-- Zachary Galbraith - calendar/auth integration, backend
+- Zachary Galbraith - calendar/auth integration, backend yuh
 
 ## Links
 
