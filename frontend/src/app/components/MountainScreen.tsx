@@ -728,19 +728,14 @@ export function MountainScreen() {
                           Throw unlocks when you are more focused than {throwTarget.name}.
                         </p>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={toggleFocusChecks}
+                        className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-foreground transition-opacity hover:opacity-80"
+                      >
+                        {prefs.focusChecksEnabled ? "Turn checks off" : "Turn checks on"}
+                      </button>
                     </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={toggleFocusChecks}
-                      className="rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-foreground transition-opacity hover:opacity-80"
-                    >
-                      {prefs.focusChecksEnabled ? "Turn checks off" : "Turn checks on"}
-                    </button>
                   </div>
                 </div>
               </div>
