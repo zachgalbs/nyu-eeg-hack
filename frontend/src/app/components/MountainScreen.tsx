@@ -718,28 +718,14 @@ export function MountainScreen() {
 
                     <div className="min-w-0 flex-1">
                       <div
-                        className="mb-1 text-foreground tabular-nums"
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "24px",
-                          fontWeight: 600,
-                        }}
+                        className={`mb-1 font-semibold ${lastCheck === "verified" ? "text-moss" : "text-coral"}`}
+                        style={{ fontSize: "24px", fontWeight: 600 }}
                       >
-                        {focusScore}% focused
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`h-2 w-2 shrink-0 rounded-full ${
-                            lastCheck === "verified" ? "bg-moss" : "bg-coral"
-                          }`}
-                        />
-                        <span className="text-muted" style={{ fontSize: "13px" }}>
-                          {lastCheck === "verified" ? "focused" : "distracted"}
-                        </span>
+                        {lastCheck === "verified" ? "Focused" : "Not focused"}
                       </div>
                       {throwTarget && throwTargetFocus !== null ? (
                         <p className="mt-1 text-[11px] text-warm-gray">
-                          Throw unlocks when you are 5+ focus points ahead of {throwTarget.name} ({throwTargetFocus}%).
+                          Throw unlocks when you are more focused than {throwTarget.name}.
                         </p>
                       ) : null}
                     </div>
