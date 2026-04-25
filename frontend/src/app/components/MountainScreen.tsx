@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
-import { Pause } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
@@ -32,6 +32,7 @@ export function MountainScreen() {
 
   const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const [focusScore, setFocusScore] = useState(97);
   const [lastCheck, setLastCheck] = useState<'verified' | 'distracted'>('verified');
@@ -51,11 +52,12 @@ export function MountainScreen() {
   }, []);
 
   useEffect(() => {
+    if (isPaused) return;
     const id = window.setInterval(() => {
       setElapsedSeconds((prev) => (prev >= totalSeconds ? prev : prev + 1));
     }, 1000);
     return () => window.clearInterval(id);
-  }, [totalSeconds]);
+  }, [totalSeconds, isPaused]);
 
   useEffect(() => {
     setProgress(Math.min(100, (elapsedSeconds / totalSeconds) * 100));
@@ -73,6 +75,7 @@ export function MountainScreen() {
   }, [elapsedSeconds, totalSeconds, eventId, navigate]);
 
   useEffect(() => {
+    if (isPaused) return;
     const focusCheckInterval = window.setInterval(() => {
       const isDistracted = Math.random() < 0.15;
       const checkResult = isDistracted ? 'distracted' : 'verified';
@@ -99,7 +102,7 @@ export function MountainScreen() {
     }, 10000);
 
     return () => window.clearInterval(focusCheckInterval);
-  }, []);
+  }, [isPaused]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
   const blockLabel =
@@ -141,10 +144,18 @@ export function MountainScreen() {
         <div className="absolute top-0 left-0 right-0 z-10 flex justify-center px-4 pt-4 sm:px-6">
           <div className="flex w-full max-w-6xl items-start justify-between gap-3">
             <div
-              className="min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-4"
+              className={`min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-4 ${isPaused ? "opacity-90" : ""}`}
             >
+              {isPaused ? (
+                <div
+                  className="mb-2 inline-block rounded-full border border-border bg-background-solid/80 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-warm-gray"
+                  style={{ fontFamily: "var(--font-pixel)" }}
+                >
+                  Paused
+                </div>
+              ) : null}
               <div
-                className="mb-1 text-foreground tabular-nums tracking-tight"
+                className={`mb-1 text-foreground tabular-nums tracking-tight ${isPaused ? "text-warm-gray" : ""}`}
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: "clamp(2rem, 6vw, 2.75rem)",
@@ -178,10 +189,16 @@ export function MountainScreen() {
             <div className="flex shrink-0 flex-col gap-2">
               <button
                 type="button"
+                onClick={() => setIsPaused((p) => !p)}
                 className="flex items-center justify-center rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
-                aria-label="Pause session"
+                aria-label={isPaused ? "Resume session" : "Pause session"}
+                aria-pressed={isPaused}
               >
-                <Pause className="h-5 w-5" strokeWidth={2} />
+                {isPaused ? (
+                  <Play className="h-5 w-5" strokeWidth={2} />
+                ) : (
+                  <Pause className="h-5 w-5" strokeWidth={2} />
+                )}
               </button>
               <button
                 type="button"
@@ -202,8 +219,10 @@ export function MountainScreen() {
               style={{ width: 80, height: 60 }}
             >
               <div className="text-center">
-                <div className="mx-auto mb-1 h-2 w-2 animate-pulse rounded-full bg-primary" />
-                LIVE
+                <div
+                  className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
+                />
+                {isPaused ? "PAUSED" : "LIVE"}
               </div>
             </div>
 

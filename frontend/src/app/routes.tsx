@@ -6,6 +6,7 @@ import { CalendarScreen } from "./components/CalendarScreen";
 import { MountainScreen } from "./components/MountainScreen";
 import { SummitScreen } from "./components/SummitScreen";
 import { FriendsScreen } from "./components/FriendsScreen";
+import { ProfileScreen } from "./components/ProfileScreen";
 
 export const router = createBrowserRouter([
   { path: "/welcome", Component: WelcomeScreen },
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
       { path: "mountain/:eventId", Component: MountainScreen },
       { path: "summit/:eventId", Component: SummitScreen },
       { path: "friends", Component: FriendsScreen },
+      { path: "profile", Component: ProfileScreen },
     ],
   },
 ]);
