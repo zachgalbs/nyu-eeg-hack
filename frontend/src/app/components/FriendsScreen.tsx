@@ -15,6 +15,7 @@ interface Friend {
 export function FriendsScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
+  const [needsAuth, setNeedsAuth] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [inviting, setInviting] = useState(false);
@@ -23,8 +24,9 @@ export function FriendsScreen() {
 
   useEffect(() => {
     fetch('/api/friends/list')
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        if (r.status === 401) { setNeedsAuth(true); setLoading(false); return; }
+        const data = await r.json();
         setFriends(data.friends ?? []);
         setLoading(false);
       })
@@ -117,7 +119,18 @@ export function FriendsScreen() {
         </div>
       )}
 
-      {loading ? (
+      {needsAuth ? (
+        <div className="text-center py-16">
+          <p className="text-warm-gray mb-6" style={{ fontSize: '15px' }}>Sign in to see your friends.</p>
+          <a
+            href="/api/auth/login"
+            className="rounded-full bg-primary px-8 py-3 text-primary-foreground transition-opacity hover:opacity-90"
+            style={{ fontWeight: 600, fontSize: '15px' }}
+          >
+            Sign in with Google
+          </a>
+        </div>
+      ) : loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div

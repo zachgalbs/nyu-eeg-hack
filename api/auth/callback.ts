@@ -58,11 +58,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `
   }
 
-  const maxAge = 3600
+  const tokenMaxAge = 3600          // google_token expires with the OAuth token
+  const sessionMaxAge = 60 * 60 * 24 * 30  // user_id/name persist for 30 days
   res.setHeader('Set-Cookie', [
-    `google_token=${tokens.access_token}; Path=/; Max-Age=${maxAge}; SameSite=Lax`,
-    `user_id=${user.id}; Path=/; Max-Age=${maxAge}; SameSite=Lax`,
-    `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${maxAge}; SameSite=Lax`,
+    `google_token=${tokens.access_token}; Path=/; Max-Age=${tokenMaxAge}; SameSite=Lax`,
+    `user_id=${user.id}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
+    `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
   ])
 
   // Redirect to friends page if coming from invite, otherwise home
