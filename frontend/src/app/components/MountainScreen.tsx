@@ -612,7 +612,6 @@ export function MountainScreen() {
                   fontFamily: "var(--font-mono)",
                 }}
               >
-                <span>Today&apos;s focus (demo): 3h 24m</span>
                 <span className="text-foreground/90">
                   {hasCheckedIn ? blockLabel : "check in to start timer"}
                 </span>
