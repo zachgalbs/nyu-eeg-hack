@@ -1,5 +1,5 @@
 export interface FriendPresence {
-  id: number;
+  id: string | number;
   name: string;
   currentTask: string | null;
   focusedTimeToday: number;

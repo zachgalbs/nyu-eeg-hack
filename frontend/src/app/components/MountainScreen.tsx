@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import {
   Pause,
   Play,
@@ -12,13 +12,12 @@ import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
-import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import {
   getBuddyCommitment,
   saveSessionOutcome,
 } from "../../lib/compcal-state";
-import { getSortedFriendPresence } from "../../lib/friends-presence";
+import { type FriendPresence } from "../../lib/friends-presence";
 import {
   getTabIdentity,
   publishRoast,
@@ -63,8 +62,14 @@ function estimateFriendFocus(seedMinutes: number) {
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = (location.state ?? null) as { title?: string; duration?: number } | null;
   const eventKey = eventId ?? "active";
-  const event = eventData[eventKey] ?? eventData.active;
+  const fallbackEvent = eventData[eventKey] ?? eventData.active;
+  const event = {
+    name: navState?.title || fallbackEvent.name,
+    duration: navState?.duration || fallbackEvent.duration,
+  };
 
   const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -79,7 +84,6 @@ export function MountainScreen() {
   const [distractedCount, setDistractionCount] = useState(0);
   const [distractedChecksTotal, setDistractedChecksTotal] = useState(0);
   const [activeRoast, setActiveRoast] = useState<ActiveRoast | null>(null);
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
@@ -97,6 +101,7 @@ export function MountainScreen() {
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
   const [snowballMode, setSnowballMode] = useState<'throw' | 'hit' | null>(null);
   const snowballVideoRef = useRef<HTMLVideoElement>(null);
+  const [realFriends, setRealFriends] = useState<FriendPresence[]>([]);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
   // Background video state
@@ -143,6 +148,47 @@ export function MountainScreen() {
     v.load();
     v.play().catch(() => {});
   }, [snowballMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    type ApiFriend = {
+      user_id: string;
+      name: string;
+      last_event: string | null;
+      is_active: boolean;
+      last_summit: string | null;
+    };
+    const fetchFriends = () => {
+      fetch('/api/friends/list')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { friends: ApiFriend[] } | null) => {
+          if (cancelled || !data?.friends) return;
+          setRealFriends(
+            data.friends.map((f) => ({
+              id: f.user_id,
+              name: f.name,
+              currentTask: f.last_event,
+              focusedTimeToday: 0,
+              altitude: 0,
+              status: f.is_active ? 'climbing' : (f.last_summit ? 'summited' : 'idle'),
+            }))
+          );
+        })
+        .catch(() => {});
+    };
+    fetchFriends();
+    const id = window.setInterval(fetchFriends, 30000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    fetch('/api/sessions/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventTitle: event.name }),
+    }).catch(() => {});
+  }, [hasCheckedIn, event.name]);
 
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
@@ -235,6 +281,15 @@ export function MountainScreen() {
     };
   }, [hasCheckedIn, isPaused]);
 
+  // Hide the UI immediately when an overlay animation (snowball / break transitions) plays
+  useEffect(() => {
+    const animationActive = snowballMode !== null || bgMode === 'going_to_break' || bgMode === 'going_from_break';
+    if (animationActive) {
+      setUiVisible(false);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    }
+  }, [snowballMode, bgMode]);
+
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -313,8 +368,12 @@ export function MountainScreen() {
       : `${blockMinutes}m this block`;
 
   const friendPresence = useMemo(
-    () => getSortedFriendPresence().filter((friend) => !friend.isUser),
-    []
+    () => [...realFriends].sort((a, b) => {
+      if (a.status === 'climbing' && b.status !== 'climbing') return -1;
+      if (a.status !== 'climbing' && b.status === 'climbing') return 1;
+      return 0;
+    }),
+    [realFriends]
   );
   const activeFriends = friendPresence.filter((friend) => friend.status === "climbing");
   const friendFocusMap = useMemo(
@@ -473,6 +532,13 @@ export function MountainScreen() {
     <>
       <video ref={videoRef} className="hidden" muted playsInline />
       <canvas ref={canvasRef} className="hidden" />
+      <video
+        ref={snowballVideoRef}
+        className={`pointer-events-none fixed inset-0 z-[60] h-full w-full object-cover transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
+        muted
+        playsInline
+        onEnded={() => setSnowballMode(null)}
+      />
       <div className={`fixed inset-0 z-30 overflow-y-auto bg-background-solid ${!uiVisible ? "cursor-none" : ""}`}>
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
@@ -672,14 +738,6 @@ export function MountainScreen() {
                     <Pause className="h-5 w-5" strokeWidth={2} />
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setAssistantOpen(true)}
-                  className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90"
-                  style={{ fontSize: "13px", fontWeight: 600 }}
-                >
-                  Ask
-                </button>
               </div>
             </div>
           </div>
@@ -702,13 +760,6 @@ export function MountainScreen() {
                 isPaused={!hasCheckedIn || isPaused}
                 friendClimbers={friendClimbers}
                 throwProjectile={projectile}
-              />
-              <video
-                ref={snowballVideoRef}
-                className={`pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
-                muted
-                playsInline
-                onEnded={() => setSnowballMode(null)}
               />
             </div>
           </div>
@@ -867,10 +918,6 @@ export function MountainScreen() {
           <FocusCheckToast type={toastType} lowPressureMode={false} />
         )}
       </div>
-
-      {assistantOpen && (
-        <StudyAssistantPanel onClose={() => setAssistantOpen(false)} />
-      )}
 
       {activeRoast ? (
         <RoastModal
