@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { sql } from '../lib/db';
-import { parseCookie } from '../lib/cookies';
+import { sql } from '../_lib/db';
+import { parseCookie } from '../_lib/cookies';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).end();

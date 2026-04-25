@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
-import { getUserIdFromCookies } from '../lib/cookies';
+import { getUserIdFromCookies } from '../_lib/cookies';
 
 async function ensureRoastTable() {
   await sql`
@@ -43,7 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await sql`
         UPDATE roast_events
         SET is_read = TRUE
-        WHERE id = ANY(${ids}::bigint[])
+        WHERE id = ANY(${ids as any}::bigint[])
       `;
     }
 

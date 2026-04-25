@@ -6,3 +6,9 @@ export function parseCookie(req: VercelRequest, name: string): string | null {
   );
   return match ? decodeURIComponent(match[1]) : null;
 }
+
+export function getUserIdFromCookies(cookie: string | undefined): string | null {
+  if (!cookie) return null;
+  const match = cookie.match(/(?:^|;\s*)user_id=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}

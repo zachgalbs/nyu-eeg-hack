@@ -3,14 +3,10 @@ import { useParams, useNavigate } from "react-router";
 import {
   Pause,
   Play,
-  ShieldCheck,
   HandHeart,
   LogOut,
   Users,
   X,
-  Flag,
-  Timer,
-  Trophy,
 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
@@ -20,9 +16,7 @@ import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import {
   getBuddyCommitment,
-  getPrefs,
   saveSessionOutcome,
-  updatePrefs,
 } from "../../lib/compcal-state";
 import { getSortedFriendPresence } from "../../lib/friends-presence";
 import {
@@ -87,15 +81,68 @@ export function MountainScreen() {
   const [activeRoast, setActiveRoast] = useState<ActiveRoast | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
-  const [prefs, setPrefs] = useState(() => getPrefs());
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [uiVisible, setUiVisible] = useState(true);
+  const [debugImage, setDebugImage] = useState<string | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [debugError, setDebugError] = useState<string | null>(null);
+  const [debugScore, setDebugScore] = useState<{ score: number; raw: string } | null>(null);
   const [artReady, setArtReady] = useState(false);
-  const [timelineFlash, setTimelineFlash] = useState<"checkin" | "focus" | "summit" | null>(null);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
+  const [snowballMode, setSnowballMode] = useState<'throw' | 'hit' | null>(null);
+  const snowballVideoRef = useRef<HTMLVideoElement>(null);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
+
+  // Background video state
+  type BgMode = 'static' | 'climbing' | 'going_to_break' | 'going_from_break';
+  const [bgMode, setBgMode] = useState<BgMode>('static');
+  const bgVideoRef = useRef<HTMLVideoElement>(null);
+  const prevIsPausedRef = useRef(false);
+
+  // Switch to climbing background on check-in
+  useEffect(() => {
+    if (hasCheckedIn) setBgMode('climbing');
+  }, [hasCheckedIn]);
+
+  // Detect pause/resume transitions and play the appropriate video
+  useEffect(() => {
+    const prev = prevIsPausedRef.current;
+    prevIsPausedRef.current = isPaused;
+    if (!hasCheckedIn) return;
+    if (!prev && isPaused) setBgMode('going_to_break');
+    else if (prev && !isPaused) setBgMode('going_from_break');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPaused]);
+
+  // Imperatively load and play the correct video when bgMode changes
+  useEffect(() => {
+    const v = bgVideoRef.current;
+    if (!v || bgMode === 'static') return;
+    const srcs = {
+      climbing: '/media/climbing_animation.mp4',
+      going_to_break: '/media/going_to_break.mov',
+      going_from_break: '/media/going_from_break.mov',
+    } as const;
+    v.src = srcs[bgMode as keyof typeof srcs];
+    v.loop = bgMode === 'climbing';
+    v.load();
+    v.play().catch(() => {});
+  }, [bgMode]);
+  useEffect(() => {
+    const v = snowballVideoRef.current;
+    if (!v || !snowballMode) return;
+    v.src = snowballMode === 'throw'
+      ? '/media/Cat_throws_snowball.mp4'
+      : '/media/Cat_hit_by_snowball.mp4';
+    v.load();
+    v.play().catch(() => {});
+  }, [snowballMode]);
 
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
@@ -153,22 +200,88 @@ export function MountainScreen() {
     buddyCommitment?.buddyName,
   ]);
 
+  // Start webcam on mount so debug check works immediately
   useEffect(() => {
-    if (isPaused || !hasCheckedIn || !prefs.focusChecksEnabled) return;
-    const focusCheckInterval = window.setInterval(() => {
-      const isDistracted = Math.random() < 0.15;
-      const checkResult = isDistracted ? 'distracted' : 'verified';
+    let stream: MediaStream | null = null;
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then((s) => {
+        stream = s;
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          videoRef.current.play().catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => { stream?.getTracks().forEach((t) => t.stop()); };
+  }, []);
 
+  // Auto-hide UI after 4s of inactivity (only during active session)
+  useEffect(() => {
+    if (!hasCheckedIn || isPaused) {
+      setUiVisible(true);
+      return;
+    }
+    const resetTimer = () => {
+      setUiVisible(true);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setUiVisible(false), 4000);
+    };
+    resetTimer();
+    const events = ['mousemove', 'mousedown', 'touchstart', 'keydown'] as const;
+    events.forEach((e) => document.addEventListener(e, resetTimer, { passive: true }));
+    return () => {
+      events.forEach((e) => document.removeEventListener(e, resetTimer));
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [hasCheckedIn, isPaused]);
+
+  async function captureAndCheck(): Promise<boolean> {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) throw new Error('No camera element');
+    if (video.readyState < 2) {
+      await new Promise<void>((resolve, reject) => {
+        const timer = window.setTimeout(() => {
+          video.removeEventListener('loadeddata', onLoaded);
+          reject(new Error('Camera not ready — allow camera access and try again'));
+        }, 6000);
+        const onLoaded = () => { clearTimeout(timer); resolve(); };
+        video.addEventListener('loadeddata', onLoaded, { once: true });
+      });
+    }
+    canvas.width = video.videoWidth || 320;
+    canvas.height = video.videoHeight || 240;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+    setDebugImage(dataUrl);
+    const imageBase64 = dataUrl.split(',')[1];
+    const res = await fetch('/api/check-focus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, eventName: event.name }),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    const data = await res.json();
+    const score = typeof data.score === 'number' ? data.score : 0;
+    setDebugScore({ score, raw: typeof data.raw === 'string' ? data.raw : '' });
+    return score > 0.5;
+  }
+
+  useEffect(() => {
+    if (isPaused || !hasCheckedIn) return;
+    const focusCheckInterval = window.setInterval(() => {
+      captureAndCheck().then((isDistracted) => {
+      const checkResult = isDistracted ? 'distracted' : 'verified';
       setLastCheck(checkResult);
       setToastType(checkResult);
       setShowToast(true);
 
       if (isDistracted) {
         setDistractedChecksTotal((prev) => prev + 1);
-        setFocusScore((prev) => Math.max(70, prev - (prefs.lowPressureMode ? 1 : 3)));
+        setFocusScore((prev) => Math.max(70, prev - 3));
         setDistractionCount((prev) => {
           const newCount = prev + 1;
-          if (!prefs.lowPressureMode && newCount >= 3) {
+          if (newCount >= 3) {
             void (async () => {
               const roastText = await generateRoast({
                 userName: "You",
@@ -186,42 +299,19 @@ export function MountainScreen() {
         setFocusScore((prev) => Math.min(100, prev + 1));
       }
 
-      window.setTimeout(() => setShowToast(false), 2500);
-    }, 10000);
+        window.setTimeout(() => setShowToast(false), 2500);
+      }).catch(() => {});
+    }, 60000);
 
     return () => window.clearInterval(focusCheckInterval);
-  }, [isPaused, hasCheckedIn, prefs.focusChecksEnabled, prefs.lowPressureMode, elapsedSeconds, event.name]);
-
-  const toggleFocusChecks = () => {
-    const next = updatePrefs({ focusChecksEnabled: !prefs.focusChecksEnabled });
-    setPrefs(next);
-  };
+  }, [isPaused, hasCheckedIn, elapsedSeconds, event.name]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
   const blockLabel =
     blockMinutes >= 60
       ? `${Math.floor(blockMinutes / 60)}h ${blockMinutes % 60}m this block`
       : `${blockMinutes}m this block`;
-  const timeline = [
-    {
-      id: "checkin",
-      label: "Check in",
-      Icon: Flag,
-      state: hasCheckedIn ? "done" : "current",
-    },
-    {
-      id: "focus",
-      label: "Focus climb",
-      Icon: Timer,
-      state: hasCheckedIn ? (progress >= 98 ? "done" : "current") : "upcoming",
-    },
-    {
-      id: "summit",
-      label: "Summit",
-      Icon: Trophy,
-      state: progress >= 98 ? "done" : "upcoming",
-    },
-  ] as const;
+
   const friendPresence = useMemo(
     () => getSortedFriendPresence().filter((friend) => !friend.isUser),
     []
@@ -302,32 +392,12 @@ export function MountainScreen() {
     navigate("/calendar");
   };
 
-  const handleTimelineAction = (stepId: "checkin" | "focus" | "summit") => {
-    setTimelineFlash(stepId);
-    window.setTimeout(() => setTimelineFlash(null), 650);
-
-    if (stepId === "checkin") {
-      if (!hasCheckedIn) {
-        setHasCheckedIn(true);
-        setCheckedInAt(new Date());
-      }
-      return;
-    }
-
-    if (stepId === "focus") {
-      if (hasCheckedIn && isPaused) setIsPaused(false);
-      return;
-    }
-
-    if (stepId === "summit" && hasCheckedIn && progress >= 98) {
-      navigate(`/summit/${eventId ?? "me-1"}`);
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = subscribeRoasts((payload) => {
       if (payload.toUserId !== localUserId && payload.toUserId !== "broadcast") return;
       if (payload.fromUserId === localUserId) return;
+      if (payload.trigger === 'friend_throw') setSnowballMode('hit');
       setActiveRoast({
         text: payload.roastText,
         trigger: payload.trigger,
@@ -344,6 +414,7 @@ export function MountainScreen() {
         const inboxEvents = await pollRoastInbox();
         const incoming = inboxEvents.find((event) => event.toUserId === localUserId);
         if (!incoming) return;
+        if (incoming.trigger === 'friend_throw') setSnowballMode('hit');
         setActiveRoast({
           text: incoming.roastText,
           trigger: incoming.trigger,
@@ -357,6 +428,7 @@ export function MountainScreen() {
   const throwAtFriend = async () => {
     if (!throwTarget || !canThrow) return;
     setIsThrowing(true);
+    setSnowballMode('throw');
     const targetProgress = friendClimbers.find((friend) => friend.id === String(throwTarget.id))?.progress ?? progress;
     setProjectile({ fromProgress: progress, toProgress: targetProgress, active: true });
     window.setTimeout(() => setProjectile(null), 700);
@@ -399,15 +471,32 @@ export function MountainScreen() {
 
   return (
     <>
-      <div className="fixed inset-0 z-30 overflow-y-auto bg-background-solid">
+      <video ref={videoRef} className="hidden" muted playsInline />
+      <canvas ref={canvasRef} className="hidden" />
+      <div className={`fixed inset-0 z-30 overflow-y-auto bg-background-solid ${!uiVisible ? "cursor-none" : ""}`}>
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
           alt=""
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-            artReady ? "opacity-100" : "opacity-0"
+            artReady && bgMode === 'static' ? "opacity-100" : "opacity-0"
           }`}
           onLoad={() => setArtReady(true)}
           decoding="async"
+        />
+
+        {/* Video background: climbing loop + pause/resume transitions */}
+        <video
+          ref={bgVideoRef}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            bgMode !== 'static' ? "opacity-100" : "opacity-0"
+          }`}
+          muted
+          playsInline
+          onLoadedData={() => { if (!artReady) setArtReady(true); }}
+          onEnded={() => {
+            if (bgMode === 'going_to_break') setBgMode('static');
+            if (bgMode === 'going_from_break') setBgMode('climbing');
+          }}
         />
 
         <div
@@ -415,7 +504,7 @@ export function MountainScreen() {
           aria-hidden
         />
 
-        <div className="relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5">
+        <div className={`relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
           <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
             <div
@@ -598,7 +687,7 @@ export function MountainScreen() {
             artReady ? "opacity-100" : "opacity-0"
           }`}>
             <div
-              className="overflow-hidden rounded-2xl border-2 border-border/40"
+              className="relative overflow-hidden rounded-2xl border-2 border-border/40"
               style={{
                 width: "min(88vw, 560px)",
                 height: "min(42vh, 390px)",
@@ -614,119 +703,88 @@ export function MountainScreen() {
                 friendClimbers={friendClimbers}
                 throwProjectile={projectile}
               />
+              <video
+                ref={snowballVideoRef}
+                className={`pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
+                muted
+                playsInline
+                onEnded={() => setSnowballMode(null)}
+              />
             </div>
           </div>
 
           <div className="w-full">
             <div className="flex items-end gap-3">
               <div className="min-w-0 flex-1 space-y-3">
-                <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md">
-                  <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">Timeline</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {timeline.map(({ id, label, Icon, state }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => handleTimelineAction(id)}
-                        disabled={id === "summit" && !(hasCheckedIn && progress >= 98)}
-                        aria-disabled={id === "summit" && !(hasCheckedIn && progress >= 98)}
-                        className={`rounded-xl border px-2 py-2 text-center ${
-                          state === "done"
-                            ? "border-moss/60 bg-moss/15"
-                            : state === "current"
-                              ? "border-terracotta/60 bg-terracotta/10"
-                              : "border-border bg-background-solid/40"
-                        } ${timelineFlash === id ? "ring-2 ring-primary/70" : ""} transition-opacity hover:opacity-90 disabled:opacity-55`}
-                      >
-                        <Icon
-                          className={`mx-auto mb-1 h-4 w-4 ${
-                            state === "done"
-                              ? "text-moss"
-                              : state === "current"
-                                ? "text-terracotta"
-                                : "text-warm-gray"
-                          }`}
-                        />
-                        <p className="text-[11px] text-foreground">{label}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
                   <div className="flex items-center gap-4">
                     <div
-                      className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
+                      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mountain/50 text-[10px] text-foreground"
                       style={{ width: 80, height: 60 }}
                     >
-                      <div className="text-center">
-                        <div
-                          className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
-                        />
-                        {prefs.focusChecksEnabled ? (isPaused ? "PAUSED" : "LIVE") : "CHECKS OFF"}
-                      </div>
+                      {debugImage ? (
+                        <>
+                          <img src={debugImage} alt="Captured frame" className="absolute inset-0 h-full w-full object-cover" />
+                          <div className="absolute inset-0 flex items-end justify-center pb-1">
+                            <span className="rounded bg-black/50 px-1 text-[9px] text-white">{isPaused ? "PAUSED" : "LIVE"}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-center">
+                          <div
+                            className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
+                          />
+                          {isPaused ? "PAUSED" : "LIVE"}
+                        </div>
+                      )}
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <div
-                        className="mb-1 text-foreground tabular-nums"
-                        style={{
-                          fontFamily: "var(--font-mono)",
-                          fontSize: "24px",
-                          fontWeight: 600,
-                        }}
+                        className={`mb-1 font-semibold ${lastCheck === "verified" ? "text-moss" : "text-coral"}`}
+                        style={{ fontSize: "24px", fontWeight: 600 }}
                       >
-                        {focusScore}% focused
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className={`h-2 w-2 shrink-0 rounded-full ${
-                            lastCheck === "verified" ? "bg-moss" : "bg-coral"
-                          }`}
-                        />
-                        <span className="text-muted" style={{ fontSize: "13px" }}>
-                          {lastCheck === "verified" ? "focused" : "distracted"}
-                        </span>
+                        {lastCheck === "verified" ? "Focused" : "Not focused"}
                       </div>
                       {throwTarget && throwTargetFocus !== null ? (
                         <p className="mt-1 text-[11px] text-warm-gray">
-                          Throw unlocks when you are 5+ focus points ahead of {throwTarget.name} ({throwTargetFocus}%).
+                          Throw unlocks when you are more focused than {throwTarget.name}.
                         </p>
                       ) : null}
+                      <button
+                        type="button"
+                        disabled={isChecking}
+                        onClick={async () => {
+                          setIsChecking(true);
+                          setDebugError(null);
+                          try {
+                            const isDistracted = await captureAndCheck();
+                            const result = isDistracted ? 'distracted' : 'verified';
+                            setLastCheck(result);
+                            setToastType(result);
+                            setShowToast(true);
+                            window.setTimeout(() => setShowToast(false), 2500);
+                          } catch (err) {
+                            setDebugError(err instanceof Error ? err.message : 'Check failed');
+                          } finally {
+                            setIsChecking(false);
+                          }
+                        }}
+                        className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-warm-gray transition-opacity hover:opacity-80 disabled:opacity-50"
+                      >
+                        {isChecking ? 'Checking...' : '[debug] check now'}
+                      </button>
+                      {debugError && (
+                        <p className="mt-1 text-[10px] text-coral">{debugError}</p>
+                      )}
+                      {debugScore && (
+                        <p className="mt-1 text-[10px] text-warm-gray">
+                          Claude: {debugScore.score.toFixed(2)} → {debugScore.score > 0.5 ? 'distracted' : 'focused'}
+                          {debugScore.raw && debugScore.raw !== debugScore.score.toFixed(2) ? ` (raw: ${debugScore.raw.slice(0, 40)})` : ''}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-foreground/90">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Focus checks are periodic snapshots only (no continuous recording).
-                    </span>
-                    <button
-                      type="button"
-                      onClick={toggleFocusChecks}
-                      className="rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-foreground transition-opacity hover:opacity-80"
-                    >
-                      {prefs.focusChecksEnabled ? "Turn checks off" : "Turn checks on"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="hidden w-[148px] shrink-0 rounded-2xl border border-border bg-card/90 p-2 shadow-[var(--shadow-card)] backdrop-blur-md md:block">
-                <p className="mb-1 text-center text-[10px] uppercase tracking-wide text-warm-gray">Mini map</p>
-                <div className="pointer-events-none overflow-hidden rounded-xl border border-border/60">
-                  <div className="h-[132px] w-[132px]">
-                    <MountainSVG
-                      progress={progress}
-                      climberName="You"
-                      climberColor="#c4b5e8"
-                      trailOnly
-                      isPaused={!hasCheckedIn || isPaused}
-                      friendClimbers={friendClimbers}
-                      throwProjectile={null}
-                    />
                   </div>
                 </div>
               </div>
@@ -806,7 +864,7 @@ export function MountainScreen() {
         )}
 
         {showToast && (
-          <FocusCheckToast type={toastType} lowPressureMode={prefs.lowPressureMode} />
+          <FocusCheckToast type={toastType} lowPressureMode={false} />
         )}
       </div>
 

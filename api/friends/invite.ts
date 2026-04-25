@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { sql } from '../lib/db';
-import { parseCookie } from '../lib/cookies';
+import { sql } from '../_lib/db';
+import { parseCookie } from '../_lib/cookies';
 
 function getBase(req: VercelRequest) {
   return process.env.VERCEL_PROJECT_PRODUCTION_URL

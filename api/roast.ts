@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Anthropic from '@anthropic-ai/sdk';
+import type { TextBlock } from '@anthropic-ai/sdk/resources/messages';
 
 type RoastPayload = {
   userName?: string;
@@ -48,14 +49,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ].join('\n');
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-1-20250805',
+      model: 'claude-sonnet-4-6',
       max_tokens: 90,
       temperature: 0.8,
       messages: [{ role: 'user', content: prompt }],
     });
 
     const text = message.content
-      .filter((chunk): chunk is { type: 'text'; text: string } => chunk.type === 'text')
+      .filter((chunk): chunk is TextBlock => chunk.type === 'text')
       .map((chunk) => chunk.text)
       .join(' ')
       .trim();
