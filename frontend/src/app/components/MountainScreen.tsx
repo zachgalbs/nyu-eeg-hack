@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { Pause, Play } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { FocusCheckToast } from "./FocusCheckToast";
@@ -25,10 +25,32 @@ function formatHMS(totalSeconds: number) {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+async function checkFocusViaAPI(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<boolean> {
+  canvas.width = video.videoWidth || 320;
+  canvas.height = video.videoHeight || 240;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(video, 0, 0);
+  const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+
+  const res = await fetch('/api/check-focus', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imageBase64: base64 }),
+  });
+  const data = await res.json();
+  return (data.score ?? 0) >= 0.5;
+}
+
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const event = eventData[eventId ?? ""] ?? eventData.active;
+  const location = useLocation();
+  const stateTitle = (location.state as { title?: string } | null)?.title;
+
+  const event = eventData[eventId ?? ""] ?? {
+    name: stateTitle ?? "Focus Session",
+    duration: 60,
+  };
 
   const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -44,10 +66,30 @@ export function MountainScreen() {
   const summitSent = useRef(false);
   const [artReady, setArtReady] = useState(false);
 
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
+    };
+  }, []);
+
+  useEffect(() => {
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: 'user' }, audio: false })
+      .then((stream) => {
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
 
@@ -70,16 +112,31 @@ export function MountainScreen() {
       !summitSent.current
     ) {
       summitSent.current = true;
-      navigate(`/summit/${eventId ?? "me-1"}`);
+      navigate(`/summit/${eventId ?? "me-1"}`, { state: { focusScore } });
     }
-  }, [elapsedSeconds, totalSeconds, eventId, navigate]);
+  }, [elapsedSeconds, totalSeconds, eventId, focusScore, navigate]);
 
   useEffect(() => {
     if (isPaused) return;
-    const focusCheckInterval = window.setInterval(() => {
-      const isDistracted = Math.random() < 0.15;
-      const checkResult = isDistracted ? 'distracted' : 'verified';
 
+    const id = window.setInterval(async () => {
+      let isDistracted: boolean;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const hasCamera = streamRef.current && video && canvas && video.readyState >= 2;
+
+      if (hasCamera) {
+        try {
+          isDistracted = await checkFocusViaAPI(video!, canvas!);
+        } catch {
+          isDistracted = Math.random() < 0.15;
+        }
+      } else {
+        isDistracted = Math.random() < 0.15;
+      }
+
+      const checkResult = isDistracted ? 'distracted' : 'verified';
       setLastCheck(checkResult);
       setToastType(checkResult);
       setShowToast(true);
@@ -101,7 +158,7 @@ export function MountainScreen() {
       window.setTimeout(() => setShowToast(false), 2500);
     }, 10000);
 
-    return () => window.clearInterval(focusCheckInterval);
+    return () => window.clearInterval(id);
   }, [isPaused]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
@@ -112,6 +169,9 @@ export function MountainScreen() {
 
   return (
     <>
+      <video ref={videoRef} autoPlay playsInline muted className="hidden" />
+      <canvas ref={canvasRef} className="hidden" />
+
       <div className="fixed inset-0 z-30 overflow-hidden bg-background-solid">
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}

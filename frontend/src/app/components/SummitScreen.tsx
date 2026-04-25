@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { motion } from "motion/react";
 import { MountainSVG } from "./MountainSVG";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
@@ -18,6 +18,7 @@ const eventData: Record<string, { name: string; duration: number }> = {
 export function SummitScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const event = eventData[eventId ?? ""] ?? eventData["1"];
 
   const [showMountain, setShowMountain] = useState(false);
@@ -25,7 +26,7 @@ export function SummitScreen() {
   const [showScore, setShowScore] = useState(false);
 
   const focusedTime = event?.duration || 120;
-  const focusScore = 94;
+  const focusScore = (location.state as { focusScore?: number } | null)?.focusScore ?? 94;
 
   useEffect(() => {
     setTimeout(() => setShowMountain(true), 100);

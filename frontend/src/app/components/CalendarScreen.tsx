@@ -242,7 +242,7 @@ export function CalendarScreen() {
                     )}
                     <button
                       type="button"
-                      onClick={() => navigate(`/mountain/${event.id}`)}
+                      onClick={() => navigate(`/mountain/${event.id}`, { state: { title: event.title } })}
                       className="w-full bg-primary py-3 text-primary-foreground transition-opacity hover:opacity-90"
                       style={{ borderRadius: '999px', fontWeight: 600 }}
                     >
