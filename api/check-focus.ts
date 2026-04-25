@@ -6,8 +6,11 @@ const client = new Anthropic()
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { imageBase64 } = req.body
+  const { imageBase64, eventName } = req.body
   if (!imageBase64) return res.status(400).json({ error: 'Missing imageBase64' })
+
+  const task = eventName ? `"${eventName}"` : 'their current task'
+  const prompt = `Is this person focused on ${task}? Look at their face and body language. Are they looking at their screen and engaged, or are they looking away, on their phone, or clearly distracted? Reply with only a number from 0 to 1. 0 = focused on ${task}, 1 = clearly distracted.`
 
   const msg = await client.messages.create({
     model: 'claude-opus-4-7',
@@ -21,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         {
           type: 'text',
-          text: 'Is this person looking away from their screen or clearly distracted? Reply with only a number from 0 to 1. 1 = clearly distracted, 0 = focused.',
+          text: prompt,
         },
       ],
     }],

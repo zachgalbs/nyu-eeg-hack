@@ -86,6 +86,8 @@ export function MountainScreen() {
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [artReady, setArtReady] = useState(false);
   const [timelineFlash, setTimelineFlash] = useState<"checkin" | "focus" | "summit" | null>(null);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
@@ -184,10 +186,47 @@ export function MountainScreen() {
     buddyCommitment?.buddyName,
   ]);
 
+  // Start webcam when session begins, stop on cleanup
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    let stream: MediaStream | null = null;
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then((s) => {
+        stream = s;
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          videoRef.current.play().catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => { stream?.getTracks().forEach((t) => t.stop()); };
+  }, [hasCheckedIn]);
+
+  async function captureAndCheck(): Promise<boolean> {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2) return false;
+    canvas.width = video.videoWidth || 320;
+    canvas.height = video.videoHeight || 240;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+    try {
+      const res = await fetch('/api/check-focus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64, eventName: event.name }),
+      });
+      const { score } = await res.json();
+      return (score ?? 0) > 0.5;
+    } catch {
+      return false;
+    }
+  }
+
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
     const focusCheckInterval = window.setInterval(() => {
-      const isDistracted = Math.random() < 0.15;
+      captureAndCheck().then((isDistracted) => {
       const checkResult = isDistracted ? 'distracted' : 'verified';
 
       setLastCheck(checkResult);
@@ -217,8 +256,9 @@ export function MountainScreen() {
         setFocusScore((prev) => Math.min(100, prev + 1));
       }
 
-      window.setTimeout(() => setShowToast(false), 2500);
-    }, 10000);
+        window.setTimeout(() => setShowToast(false), 2500);
+      });
+    }, 60000);
 
     return () => window.clearInterval(focusCheckInterval);
   }, [isPaused, hasCheckedIn, elapsedSeconds, event.name]);
@@ -425,6 +465,8 @@ export function MountainScreen() {
 
   return (
     <>
+      <video ref={videoRef} className="hidden" muted playsInline />
+      <canvas ref={canvasRef} className="hidden" />
       <div className="fixed inset-0 z-30 overflow-y-auto bg-background-solid">
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
