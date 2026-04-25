@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import {
   Pause,
   Play,
@@ -62,8 +62,14 @@ function estimateFriendFocus(seedMinutes: number) {
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = (location.state ?? null) as { title?: string; duration?: number } | null;
   const eventKey = eventId ?? "active";
-  const event = eventData[eventKey] ?? eventData.active;
+  const fallbackEvent = eventData[eventKey] ?? eventData.active;
+  const event = {
+    name: navState?.title || fallbackEvent.name,
+    duration: navState?.duration || fallbackEvent.duration,
+  };
 
   const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -274,6 +280,15 @@ export function MountainScreen() {
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
   }, [hasCheckedIn, isPaused]);
+
+  // Hide the UI immediately when an overlay animation (snowball / break transitions) plays
+  useEffect(() => {
+    const animationActive = snowballMode !== null || bgMode === 'going_to_break' || bgMode === 'going_from_break';
+    if (animationActive) {
+      setUiVisible(false);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    }
+  }, [snowballMode, bgMode]);
 
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
