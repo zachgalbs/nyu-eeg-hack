@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import {
   Pause,
   Play,
@@ -16,7 +16,6 @@ import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
-import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import {
   getBuddyCommitment,
@@ -24,18 +23,14 @@ import {
   saveSessionOutcome,
   updatePrefs,
 } from "../../lib/compcal-state";
-import { getSortedFriendPresence } from "../../lib/friends-presence";
 
-const eventData: Record<string, { name: string; duration: number }> = {
-  '1': { name: "Deep Work: Design System", duration: 120 },
-  '2': { name: "Team Standup", duration: 30 },
-  '3': { name: "Focus Block: Code Review", duration: 120 },
-  'me-1': { name: "Deep Work: Design System", duration: 120 },
-  'me-2': { name: "Team Standup", duration: 30 },
-  'me-3': { name: "Focus Block: Code Review", duration: 120 },
-  'me-4': { name: "Reading", duration: 90 },
-  active: { name: "Focus Session", duration: 60 },
-};
+interface Friend {
+  user_id: string;
+  name: string;
+  avatar_url: string | null;
+  last_event: string | null;
+  is_active: boolean;
+}
 
 function formatHMS(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -47,10 +42,16 @@ function formatHMS(totalSeconds: number) {
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const eventKey = eventId ?? "active";
-  const event = eventData[eventKey] ?? eventData.active;
+  const location = useLocation();
+  const state = location.state as { title?: string; duration?: number } | null;
 
-  const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
+  const eventName = state?.title ?? "Focus Session";
+  const eventDuration = state?.duration ?? 60;
+  const eventKey = eventId ?? "active";
+
+  // Demo cap: sessions run for at most 3 minutes to keep demos snappy
+  const totalSeconds = Math.min(Math.max(45, eventDuration * 60), 180);
+
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);
@@ -63,20 +64,53 @@ export function MountainScreen() {
   const [distractedCount, setDistractionCount] = useState(0);
   const [distractedChecksTotal, setDistractedChecksTotal] = useState(0);
   const [showRoast, setShowRoast] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [prefs, setPrefs] = useState(() => getPrefs());
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const summitSent = useRef(false);
   const [artReady, setArtReady] = useState(false);
 
+  // Webcam refs for focus checks
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    return () => { document.body.style.overflow = ""; };
   }, []);
 
+  // Fetch friends list for the panel
+  useEffect(() => {
+    fetch('/api/friends/list')
+      .then(async (r) => {
+        if (!r.ok) return;
+        const data = await r.json();
+        setFriends(data.friends ?? []);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Start webcam when session begins
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    let stream: MediaStream | null = null;
+    navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      .then((s) => {
+        stream = s;
+        if (videoRef.current) {
+          videoRef.current.srcObject = s;
+          videoRef.current.play().catch(() => {});
+        }
+      })
+      .catch(() => {}); // silently continue if no camera
+    return () => {
+      stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [hasCheckedIn]);
+
+  // Timer
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
     const id = window.setInterval(() => {
@@ -85,83 +119,96 @@ export function MountainScreen() {
     return () => window.clearInterval(id);
   }, [totalSeconds, isPaused, hasCheckedIn]);
 
+  // Progress
   useEffect(() => {
     setProgress(Math.min(100, (elapsedSeconds / totalSeconds) * 100));
   }, [elapsedSeconds, totalSeconds]);
 
+  // Summit detection
   useEffect(() => {
-    if (
-      elapsedSeconds >= totalSeconds &&
-      totalSeconds > 0 &&
-      hasCheckedIn &&
-      !summitSent.current
-    ) {
-      summitSent.current = true;
-      const completedMinutes = Math.max(
-        1,
-        Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
-      );
-      const keptCommitment =
-        completedMinutes >= Math.round(event.duration * 0.8) && focusScore >= 80;
-      saveSessionOutcome({
-        id: `${eventKey}-${Date.now()}`,
-        eventId: eventKey,
-        eventTitle: event.name,
-        plannedMinutes: event.duration,
-        completedMinutes,
-        focusScore,
-        distractedChecks: distractedChecksTotal,
-        keptCommitment,
-        buddyId: buddyCommitment?.buddyId,
-        buddyName: buddyCommitment?.buddyName,
-        completedAt: new Date().toISOString(),
-      });
-      navigate(`/summit/${eventId ?? "me-1"}`);
+    if (elapsedSeconds < totalSeconds || totalSeconds <= 0 || !hasCheckedIn || summitSent.current) return;
+    summitSent.current = true;
+    const completedMinutes = Math.max(
+      1,
+      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * eventDuration),
+    );
+    const keptCommitment = completedMinutes >= Math.round(eventDuration * 0.8) && focusScore >= 80;
+    saveSessionOutcome({
+      id: `${eventKey}-${Date.now()}`,
+      eventId: eventKey,
+      eventTitle: eventName,
+      plannedMinutes: eventDuration,
+      completedMinutes,
+      focusScore,
+      distractedChecks: distractedChecksTotal,
+      keptCommitment,
+      buddyId: buddyCommitment?.buddyId,
+      buddyName: buddyCommitment?.buddyName,
+      completedAt: new Date().toISOString(),
+    });
+    if (sessionId) {
+      fetch('/api/sessions/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, focusScore }),
+      }).catch(() => {});
     }
+    navigate(`/summit/${eventId ?? "active"}`, {
+      state: { title: eventName, duration: eventDuration },
+    });
   }, [
-    elapsedSeconds,
-    totalSeconds,
-    hasCheckedIn,
-    eventId,
-    event.duration,
-    event.name,
-    eventKey,
-    navigate,
-    focusScore,
-    distractedChecksTotal,
-    buddyCommitment?.buddyId,
-    buddyCommitment?.buddyName,
+    elapsedSeconds, totalSeconds, hasCheckedIn, eventId, eventDuration,
+    eventName, eventKey, navigate, focusScore, distractedChecksTotal,
+    buddyCommitment?.buddyId, buddyCommitment?.buddyName, sessionId,
   ]);
 
+  // Capture a webcam frame and call the focus check API
+  async function captureAndCheck(): Promise<boolean> {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2) return false;
+    canvas.width = video.videoWidth || 320;
+    canvas.height = video.videoHeight || 240;
+    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    const imageBase64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+    try {
+      const res = await fetch('/api/check-focus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64 }),
+      });
+      const { score } = await res.json();
+      return (score ?? 0) > 0.5;
+    } catch {
+      return false;
+    }
+  }
+
+  // Focus check interval — every 10s
   useEffect(() => {
     if (isPaused || !hasCheckedIn || !prefs.focusChecksEnabled) return;
-    const focusCheckInterval = window.setInterval(() => {
-      const isDistracted = Math.random() < 0.15;
-      const checkResult = isDistracted ? 'distracted' : 'verified';
-
-      setLastCheck(checkResult);
-      setToastType(checkResult);
-      setShowToast(true);
-
-      if (isDistracted) {
-        setDistractedChecksTotal((prev) => prev + 1);
-        setFocusScore((prev) => Math.max(70, prev - (prefs.lowPressureMode ? 1 : 3)));
-        setDistractionCount((prev) => {
-          const newCount = prev + 1;
-          if (!prefs.lowPressureMode && newCount >= 3) {
-            setShowRoast(true);
-            return 0;
-          }
-          return newCount;
-        });
-      } else {
-        setFocusScore((prev) => Math.min(100, prev + 1));
-      }
-
-      window.setTimeout(() => setShowToast(false), 2500);
+    const id = window.setInterval(() => {
+      captureAndCheck().then((isDistracted) => {
+        const checkResult = isDistracted ? 'distracted' : 'verified';
+        setLastCheck(checkResult);
+        setToastType(checkResult);
+        setShowToast(true);
+        if (isDistracted) {
+          setDistractedChecksTotal((prev) => prev + 1);
+          setFocusScore((prev) => Math.max(70, prev - (prefs.lowPressureMode ? 1 : 3)));
+          setDistractionCount((prev) => {
+            const next = prev + 1;
+            if (!prefs.lowPressureMode && next >= 3) { setShowRoast(true); return 0; }
+            return next;
+          });
+        } else {
+          setFocusScore((prev) => Math.min(100, prev + 1));
+        }
+        window.setTimeout(() => setShowToast(false), 2500);
+      });
     }, 10000);
-
-    return () => window.clearInterval(focusCheckInterval);
+    return () => window.clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPaused, hasCheckedIn, prefs.focusChecksEnabled, prefs.lowPressureMode]);
 
   const toggleFocusChecks = () => {
@@ -169,59 +216,51 @@ export function MountainScreen() {
     setPrefs(next);
   };
 
+  const handleCheckIn = () => {
+    setHasCheckedIn(true);
+    setCheckedInAt(new Date());
+    fetch('/api/sessions/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventTitle: eventName }),
+    })
+      .then((r) => r.json())
+      .then((data) => { if (data.sessionId) setSessionId(data.sessionId); })
+      .catch(() => {});
+  };
+
   const blockMinutes = Math.floor(elapsedSeconds / 60);
   const blockLabel =
     blockMinutes >= 60
       ? `${Math.floor(blockMinutes / 60)}h ${blockMinutes % 60}m this block`
       : `${blockMinutes}m this block`;
+
   const timeline = [
-    {
-      id: "checkin",
-      label: "Check in",
-      Icon: Flag,
-      state: hasCheckedIn ? "done" : "current",
-    },
-    {
-      id: "focus",
-      label: "Focus climb",
-      Icon: Timer,
-      state: hasCheckedIn ? (progress >= 98 ? "done" : "current") : "upcoming",
-    },
-    {
-      id: "summit",
-      label: "Summit",
-      Icon: Trophy,
-      state: progress >= 98 ? "done" : "upcoming",
-    },
+    { id: "checkin", label: "Check in", Icon: Flag, state: hasCheckedIn ? "done" : "current" },
+    { id: "focus", label: "Focus climb", Icon: Timer, state: hasCheckedIn ? (progress >= 98 ? "done" : "current") : "upcoming" },
+    { id: "summit", label: "Summit", Icon: Trophy, state: progress >= 98 ? "done" : "upcoming" },
   ] as const;
-  const friendPresence = useMemo(
-    () => getSortedFriendPresence().filter((friend) => !friend.isUser),
-    []
-  );
-  const activeFriends = friendPresence.filter((friend) => friend.status === "climbing");
+
+  const activeFriends = useMemo(() => friends.filter((f) => f.is_active), [friends]);
   const stripFriends = activeFriends.slice(0, 4);
   const overflowActiveCount = Math.max(0, activeFriends.length - stripFriends.length);
   const canExit = hasCheckedIn && elapsedSeconds > 0;
 
   const exitSession = () => {
-    if (!canExit) {
-      navigate("/calendar");
-      return;
-    }
+    if (!canExit) { navigate("/calendar"); return; }
     const confirmed = window.confirm(
-      "Exit this session now? Your in-progress climb will be saved as a partial session."
+      "Exit this session now? Your in-progress climb will be saved as a partial session.",
     );
     if (!confirmed) return;
-
     const completedMinutes = Math.max(
       1,
-      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
+      Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * eventDuration),
     );
     saveSessionOutcome({
       id: `${eventKey}-partial-${Date.now()}`,
       eventId: eventKey,
-      eventTitle: event.name,
-      plannedMinutes: event.duration,
+      eventTitle: eventName,
+      plannedMinutes: eventDuration,
       completedMinutes,
       focusScore,
       distractedChecks: distractedChecksTotal,
@@ -230,11 +269,22 @@ export function MountainScreen() {
       buddyName: buddyCommitment?.buddyName,
       completedAt: new Date().toISOString(),
     });
+    if (sessionId) {
+      fetch('/api/sessions/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, focusScore }),
+      }).catch(() => {});
+    }
     navigate("/calendar");
   };
 
   return (
     <>
+      {/* Hidden webcam elements */}
+      <video ref={videoRef} className="hidden" muted playsInline />
+      <canvas ref={canvasRef} className="hidden" />
+
       <div className="fixed inset-0 z-30 overflow-hidden bg-background-solid">
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
@@ -306,16 +356,12 @@ export function MountainScreen() {
                   fontWeight: 400,
                 }}
               >
-                {event.name}
+                {eventName}
               </h2>
               <div
                 className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-2 text-muted"
-                style={{
-                  fontSize: "13px",
-                  fontFamily: "var(--font-mono)",
-                }}
+                style={{ fontSize: "13px", fontFamily: "var(--font-mono)" }}
               >
-                <span>Today&apos;s focus (demo): 3h 24m</span>
                 <span className="text-foreground/90">
                   {hasCheckedIn ? blockLabel : "check in to start timer"}
                 </span>
@@ -323,10 +369,7 @@ export function MountainScreen() {
               {!hasCheckedIn ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    setHasCheckedIn(true);
-                    setCheckedInAt(new Date());
-                  }}
+                  onClick={handleCheckIn}
                   className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                 >
                   Check in now
@@ -362,7 +405,7 @@ export function MountainScreen() {
                   <span className="inline-flex -space-x-1">
                     {stripFriends.map((friend) => (
                       <span
-                        key={friend.id}
+                        key={friend.user_id}
                         className="flex h-5 w-5 items-center justify-center rounded-full border border-card bg-card text-[9px] font-semibold text-ink"
                       >
                         {friend.name.charAt(0)}
@@ -420,14 +463,6 @@ export function MountainScreen() {
                   <Pause className="h-5 w-5" strokeWidth={2} />
                 )}
               </button>
-              <button
-                type="button"
-                onClick={() => setAssistantOpen(true)}
-                className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90"
-                style={{ fontSize: "13px", fontWeight: 600 }}
-              >
-                Ask
-              </button>
             </div>
           </div>
         </div>
@@ -449,11 +484,7 @@ export function MountainScreen() {
             <div className="min-w-0 flex-1">
               <div
                 className="mb-1 text-foreground tabular-nums"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "24px",
-                  fontWeight: 600,
-                }}
+                style={{ fontFamily: "var(--font-mono)", fontSize: "24px", fontWeight: 600 }}
               >
                 {focusScore}% focused
               </div>
@@ -474,22 +505,22 @@ export function MountainScreen() {
         <div className="absolute bottom-56 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md sm:left-6 sm:right-6">
           <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">Timeline</p>
           <div className="grid grid-cols-3 gap-2">
-            {timeline.map(({ id, label, Icon, state }) => (
+            {timeline.map(({ id, label, Icon, state: tState }) => (
               <div
                 key={id}
                 className={`rounded-xl border px-2 py-2 text-center ${
-                  state === "done"
+                  tState === "done"
                     ? "border-moss/60 bg-moss/15"
-                    : state === "current"
+                    : tState === "current"
                       ? "border-terracotta/60 bg-terracotta/10"
                       : "border-border bg-background-solid/40"
                 }`}
               >
                 <Icon
                   className={`mx-auto mb-1 h-4 w-4 ${
-                    state === "done"
+                    tState === "done"
                       ? "text-moss"
-                      : state === "current"
+                      : tState === "current"
                         ? "text-terracotta"
                         : "text-warm-gray"
                   }`}
@@ -529,7 +560,7 @@ export function MountainScreen() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">Friends climbing</p>
                   <p className="text-xs text-warm-gray">
-                    {activeFriends.length} active · {friendPresence.length} total
+                    {activeFriends.length} active · {friends.length} total
                   </p>
                 </div>
                 <button
@@ -541,37 +572,27 @@ export function MountainScreen() {
                 </button>
               </div>
               <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-                {friendPresence.map((friend) => (
+                {friends.map((friend) => (
                   <li
-                    key={friend.id}
+                    key={friend.user_id}
                     className="flex items-center gap-3 rounded-xl border border-border bg-background-solid/45 px-3 py-2"
                   >
                     <ClimberAvatar
                       name={friend.name}
                       size={30}
-                      color={friend.status === "climbing" ? "#6bc49a" : "#9aa8b4"}
-                      isActive={friend.status === "climbing"}
+                      color={friend.is_active ? "#6bc49a" : "#9aa8b4"}
+                      isActive={friend.is_active}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-foreground">{friend.name}</p>
                       <p className="truncate text-[11px] text-warm-gray">
-                        {friend.currentTask ?? "No active block"}
+                        {friend.last_event ?? "No active block"}
                       </p>
                     </div>
                     <span
-                      className={`text-[11px] ${
-                        friend.status === "climbing"
-                          ? "text-moss"
-                          : friend.status === "summited"
-                            ? "text-terracotta"
-                            : "text-warm-gray"
-                      }`}
+                      className={`text-[11px] ${friend.is_active ? "text-moss" : "text-warm-gray"}`}
                     >
-                      {friend.status === "climbing"
-                        ? "Climbing"
-                        : friend.status === "summited"
-                          ? "Summited"
-                          : "Idle"}
+                      {friend.is_active ? "Climbing" : "Idle"}
                     </span>
                   </li>
                 ))}
@@ -592,11 +613,12 @@ export function MountainScreen() {
         )}
       </div>
 
-      {assistantOpen && (
-        <StudyAssistantPanel onClose={() => setAssistantOpen(false)} />
+      {showRoast && (
+        <RoastModal
+          onClose={() => setShowRoast(false)}
+          friends={activeFriends.map((f) => f.name)}
+        />
       )}
-
-      {showRoast && <RoastModal onClose={() => setShowRoast(false)} />}
     </>
   );
 }

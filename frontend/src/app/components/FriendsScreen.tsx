@@ -10,8 +10,8 @@ interface Friend {
   user_id: string;
   name: string;
   avatar_url: string | null;
-  last_event_title: string | null;
-  last_session_started_at: string | null;
+  last_event: string | null;
+  last_summit: string | null;
   is_active: boolean;
 }
 
@@ -199,20 +199,20 @@ export function FriendsScreen() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2 mb-1">
                       <span className="text-ink font-semibold">{friend.name}</span>
-                      {friend.last_event_title && (
+                      {friend.last_event && (
                         <span
                           className="text-warm-gray italic truncate"
                           style={{ fontSize: '13px' }}
                         >
-                          {friend.last_event_title}
+                          {friend.last_event}
                         </span>
                       )}
                     </div>
                     <span className="text-warm-gray" style={{ fontSize: '13px' }}>
                       {friend.is_active
                         ? 'Climbing now'
-                        : friend.last_session_started_at
-                        ? `Last seen ${new Date(friend.last_session_started_at).toLocaleDateString()}`
+                        : friend.last_summit
+                        ? `Last climbed ${new Date(friend.last_summit).toLocaleDateString()}`
                         : 'Never climbed yet'}
                     </span>
                   </div>

@@ -5,7 +5,7 @@ import { ChevronRight, Bell, UserPen, HelpCircle, LogOut, ShieldCheck } from "lu
 import { addDays, format, startOfDay, startOfWeek } from "date-fns";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { getPrefs, getWeeklyCommitmentSummary, updatePrefs } from "../../lib/compcal-state";
-import { eventsForDay, getCalendarFixture } from "../../data/calendarFixtures";
+import { eventsForDay } from "../../data/calendarFixtures";
 
 const PROFILE_NAME_KEY = "compcal_profile_name";
 
@@ -57,7 +57,7 @@ export function ProfileScreen() {
   const weekView = useMemo(() => {
     const today = startOfDay(new Date());
     const monday = startOfWeek(today, { weekStartsOn: 1 });
-    const events = getCalendarFixture(today);
+    const events: import("../../data/calendarFixtures").CalendarEvent[] = [];
     return Array.from({ length: 7 }, (_, i) => {
       const day = addDays(monday, i);
       const myBlocks = eventsForDay(day, events).filter((e) => e.ownerId === "me").length;

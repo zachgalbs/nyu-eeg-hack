@@ -12,9 +12,10 @@ const roasts = [
 
 interface RoastModalProps {
   onClose: () => void;
+  friends?: string[];
 }
 
-export function RoastModal({ onClose }: RoastModalProps) {
+export function RoastModal({ onClose, friends = [] }: RoastModalProps) {
   const [displayedText, setDisplayedText] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const roast = roasts[Math.floor(Math.random() * roasts.length)];
@@ -81,7 +82,7 @@ export function RoastModal({ onClose }: RoastModalProps) {
             fontSize: '13px',
           }}
         >
-          shared with Sarah, Mike, Alex
+          {friends.length > 0 ? `shared with ${friends.join(', ')}` : 'your friends will see this'}
         </p>
 
         <div className="space-y-3">
