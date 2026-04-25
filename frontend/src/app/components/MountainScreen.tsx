@@ -606,8 +606,8 @@ export function MountainScreen() {
           aria-hidden
         />
 
-        <div className={`relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-          <div className="mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-6xl flex-col gap-3">
+        <div className={`relative z-10 min-h-full px-4 pb-28 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className="mx-auto flex min-h-[calc(100dvh-8rem)] w-full max-w-6xl flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
             <div
               className={`min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-3 ${isPaused ? "opacity-90" : ""}`}
@@ -776,7 +776,7 @@ export function MountainScreen() {
               </div>
             </div>
           </div>
-          <div className="mt-auto mb-6 w-full">
+          <div className="mt-auto w-full">
             <div className="flex items-stretch rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] backdrop-blur-md">
               <div className="min-w-0 flex-1 p-4">
 
