@@ -3,9 +3,10 @@ import { Check, X } from "lucide-react";
 
 interface FocusCheckToastProps {
   type: 'verified' | 'distracted';
+  lowPressureMode?: boolean;
 }
 
-export function FocusCheckToast({ type }: FocusCheckToastProps) {
+export function FocusCheckToast({ type, lowPressureMode = false }: FocusCheckToastProps) {
   const isVerified = type === 'verified';
 
   return (
@@ -32,7 +33,11 @@ export function FocusCheckToast({ type }: FocusCheckToastProps) {
             fontWeight: 600,
           }}
         >
-          {isVerified ? 'Focus check ✓' : 'Focus check ✗ — put the phone down'}
+          {isVerified
+            ? 'Focus check ✓'
+            : lowPressureMode
+              ? 'Focus drift detected — take a breath, then return.'
+              : 'Focus check ✗ — put the phone down'}
         </span>
       </div>
     </motion.div>

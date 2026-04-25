@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { motion } from "motion/react";
+import { CheckCircle2 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
+import { getLatestSessionOutcome } from "../../lib/compcal-state";
 
 const eventData: Record<string, { name: string; duration: number }> = {
   '1': { name: "Deep Work: Design System", duration: 120 },
@@ -18,15 +20,19 @@ const eventData: Record<string, { name: string; duration: number }> = {
 export function SummitScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const event = eventData[eventId ?? ""] ?? eventData["1"];
 
   const [showMountain, setShowMountain] = useState(false);
   const [showText, setShowText] = useState(false);
   const [showScore, setShowScore] = useState(false);
 
+  const sessionOutcome = getLatestSessionOutcome(eventId);
   const focusedTime = event?.duration || 120;
-  const focusScore = (location.state as { focusScore?: number } | null)?.focusScore ?? 94;
+  const focusScore = sessionOutcome?.focusScore ?? 94;
+  const plannedMinutes = sessionOutcome?.plannedMinutes ?? focusedTime;
+  const completedMinutes = sessionOutcome?.completedMinutes ?? focusedTime;
+  const distractedChecks = sessionOutcome?.distractedChecks ?? 0;
+  const keptCommitment = sessionOutcome?.keptCommitment ?? true;
 
   useEffect(() => {
     setTimeout(() => setShowMountain(true), 100);
@@ -102,7 +108,7 @@ export function SummitScreen() {
                 fontWeight: 600,
               }}
             >
-              {Math.floor(focusedTime / 60)}h {focusedTime % 60}m
+              {Math.floor(completedMinutes / 60)}h {completedMinutes % 60}m
             </div>
             <div
               className="text-moss tabular-nums"
@@ -115,6 +121,43 @@ export function SummitScreen() {
               {focusScore}% focused
             </div>
           </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: showScore ? 1 : 0, y: showScore ? 0 : 12 }}
+          transition={{ duration: 0.3, delay: 0.1, ease: [0.25, 0.1, 0.25, 1] }}
+          className="mb-6 rounded-2xl border border-border bg-card/85 p-4 text-left"
+        >
+          <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">
+            Session outcome
+          </p>
+          <div className="grid grid-cols-2 gap-3 text-[13px] text-foreground">
+            <div>
+              <p className="text-warm-gray">Planned</p>
+              <p className="font-semibold">{plannedMinutes}m</p>
+            </div>
+            <div>
+              <p className="text-warm-gray">Completed</p>
+              <p className="font-semibold">{completedMinutes}m</p>
+            </div>
+            <div>
+              <p className="text-warm-gray">Distraction checks</p>
+              <p className="font-semibold">{distractedChecks}</p>
+            </div>
+            <div>
+              <p className="text-warm-gray">Commitment</p>
+              <p className={`font-semibold ${keptCommitment ? "text-moss" : "text-coral"}`}>
+                {keptCommitment ? "Kept" : "Needs reset"}
+              </p>
+            </div>
+          </div>
+          {sessionOutcome?.buddyName ? (
+            <p className="mt-3 flex items-center gap-2 text-[12px] text-moss">
+              <CheckCircle2 className="h-4 w-4" />
+              You and {sessionOutcome.buddyName} both see this completion.
+            </p>
+          ) : null}
         </motion.div>
 
         <motion.div
