@@ -4,7 +4,6 @@ import { Pause, Play } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
-import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 
 const eventData: Record<string, { name: string; duration: number }> = {
@@ -78,7 +77,6 @@ export function MountainScreen() {
   const [toastType, setToastType] = useState<'verified' | 'distracted'>('verified');
   const [distractedCount, setDistractionCount] = useState(0);
   const [showRoast, setShowRoast] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [checking, setChecking] = useState(false);
   const summitSent = useRef(false);
   const [artReady, setArtReady] = useState(false);
@@ -287,14 +285,6 @@ export function MountainScreen() {
               </button>
               <button
                 type="button"
-                onClick={() => setAssistantOpen(true)}
-                className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90"
-                style={{ fontSize: "13px", fontWeight: 600 }}
-              >
-                Ask
-              </button>
-              <button
-                type="button"
                 onClick={runFocusCheck}
                 disabled={checking}
                 className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90 disabled:opacity-40"
@@ -350,10 +340,6 @@ export function MountainScreen() {
 
         {showToast && <FocusCheckToast type={toastType} />}
       </div>
-
-      {assistantOpen && (
-        <StudyAssistantPanel onClose={() => setAssistantOpen(false)} />
-      )}
 
       {showRoast && <RoastModal onClose={() => setShowRoast(false)} />}
     </>
