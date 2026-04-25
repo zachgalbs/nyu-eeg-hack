@@ -776,34 +776,11 @@ export function MountainScreen() {
               </div>
             </div>
           </div>
-          <div className={`flex items-center justify-center py-2 transition-opacity duration-500 ${
-            artReady ? "opacity-100" : "opacity-0"
-          }`}>
-            <div
-              className="relative overflow-hidden rounded-2xl border-2 border-border/40"
-              style={{
-                width: "min(88vw, 560px)",
-                height: "min(42vh, 390px)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-              }}
-            >
-              <MountainSVG
-                progress={progress}
-                climberName="You"
-                climberColor="#c4b5e8"
-                trailOnly
-                isPaused={!hasCheckedIn || isPaused}
-                friendClimbers={friendClimbers}
-                throwProjectile={projectile}
-              />
-            </div>
-          </div>
-
           <div className="w-full">
-            <div className="flex items-end gap-3">
-              <div className="min-w-0 flex-1 space-y-3">
+            <div className="flex items-stretch gap-3">
+              <div className="w-full max-w-[360px] shrink-0">
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
+                <div className="h-full rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
                   <div className="flex items-center gap-4">
                     <div
                       className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mountain/50 text-[10px] text-foreground"
@@ -873,6 +850,25 @@ export function MountainScreen() {
                     </div>
                   </div>
                 </div>
+              </div>
+              <div
+                className={`relative min-w-0 flex-1 overflow-hidden rounded-2xl border-2 border-border/40 transition-opacity duration-500 ${
+                  artReady ? "opacity-100" : "opacity-0"
+                }`}
+                style={{
+                  height: "min(42vh, 390px)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                }}
+              >
+                <MountainSVG
+                  progress={progress}
+                  climberName="You"
+                  climberColor="#c4b5e8"
+                  trailOnly
+                  isPaused={!hasCheckedIn || isPaused}
+                  friendClimbers={friendClimbers}
+                  throwProjectile={projectile}
+                />
               </div>
             </div>
           </div>
