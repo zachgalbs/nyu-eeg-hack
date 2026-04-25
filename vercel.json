@@ -2,5 +2,6 @@
   "buildCommand": "cd frontend && pnpm install && pnpm build",
   "outputDirectory": "frontend/dist",
   "installCommand": "cd frontend && pnpm install",
-  "framework": "vite"
+  "framework": "vite",
+  "nodeVersion": "20.x"
 }
