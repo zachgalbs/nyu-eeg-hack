@@ -7,9 +7,6 @@ import {
   LogOut,
   Users,
   X,
-  Flag,
-  Timer,
-  Trophy,
 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
@@ -91,7 +88,6 @@ export function MountainScreen() {
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [uiVisible, setUiVisible] = useState(true);
   const [artReady, setArtReady] = useState(false);
-  const [timelineFlash, setTimelineFlash] = useState<"checkin" | "focus" | "summit" | null>(null);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
@@ -290,26 +286,7 @@ export function MountainScreen() {
     blockMinutes >= 60
       ? `${Math.floor(blockMinutes / 60)}h ${blockMinutes % 60}m this block`
       : `${blockMinutes}m this block`;
-  const timeline = [
-    {
-      id: "checkin",
-      label: "Check in",
-      Icon: Flag,
-      state: hasCheckedIn ? "done" : "current",
-    },
-    {
-      id: "focus",
-      label: "Focus climb",
-      Icon: Timer,
-      state: hasCheckedIn ? (progress >= 98 ? "done" : "current") : "upcoming",
-    },
-    {
-      id: "summit",
-      label: "Summit",
-      Icon: Trophy,
-      state: progress >= 98 ? "done" : "upcoming",
-    },
-  ] as const;
+
   const friendPresence = useMemo(
     () => getSortedFriendPresence().filter((friend) => !friend.isUser),
     []
@@ -390,27 +367,6 @@ export function MountainScreen() {
     navigate("/calendar");
   };
 
-  const handleTimelineAction = (stepId: "checkin" | "focus" | "summit") => {
-    setTimelineFlash(stepId);
-    window.setTimeout(() => setTimelineFlash(null), 650);
-
-    if (stepId === "checkin") {
-      if (!hasCheckedIn) {
-        setHasCheckedIn(true);
-        setCheckedInAt(new Date());
-      }
-      return;
-    }
-
-    if (stepId === "focus") {
-      if (hasCheckedIn && isPaused) setIsPaused(false);
-      return;
-    }
-
-    if (stepId === "summit" && hasCheckedIn && progress >= 98) {
-      navigate(`/summit/${eventId ?? "me-1"}`);
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = subscribeRoasts((payload) => {
@@ -725,38 +681,6 @@ export function MountainScreen() {
           <div className="w-full">
             <div className="flex items-end gap-3">
               <div className="min-w-0 flex-1 space-y-3">
-                <div className="rounded-2xl border border-border bg-card/90 px-4 py-3 backdrop-blur-md">
-                  <p className="mb-2 text-[11px] uppercase tracking-wide text-warm-gray">Timeline</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {timeline.map(({ id, label, Icon, state }) => (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => handleTimelineAction(id)}
-                        disabled={id === "summit" && !(hasCheckedIn && progress >= 98)}
-                        aria-disabled={id === "summit" && !(hasCheckedIn && progress >= 98)}
-                        className={`rounded-xl border px-2 py-2 text-center ${
-                          state === "done"
-                            ? "border-moss/60 bg-moss/15"
-                            : state === "current"
-                              ? "border-terracotta/60 bg-terracotta/10"
-                              : "border-border bg-background-solid/40"
-                        } ${timelineFlash === id ? "ring-2 ring-primary/70" : ""} transition-opacity hover:opacity-90 disabled:opacity-55`}
-                      >
-                        <Icon
-                          className={`mx-auto mb-1 h-4 w-4 ${
-                            state === "done"
-                              ? "text-moss"
-                              : state === "current"
-                                ? "text-terracotta"
-                                : "text-warm-gray"
-                          }`}
-                        />
-                        <p className="text-[11px] text-foreground">{label}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
                   <div className="flex items-center gap-4">
