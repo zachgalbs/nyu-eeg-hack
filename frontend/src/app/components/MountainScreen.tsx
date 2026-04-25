@@ -97,6 +97,41 @@ export function MountainScreen() {
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
+  // Background video state
+  type BgMode = 'static' | 'climbing' | 'going_to_break' | 'going_from_break';
+  const [bgMode, setBgMode] = useState<BgMode>('static');
+  const bgVideoRef = useRef<HTMLVideoElement>(null);
+  const prevIsPausedRef = useRef(false);
+
+  // Switch to climbing background on check-in
+  useEffect(() => {
+    if (hasCheckedIn) setBgMode('climbing');
+  }, [hasCheckedIn]);
+
+  // Detect pause/resume transitions and play the appropriate video
+  useEffect(() => {
+    const prev = prevIsPausedRef.current;
+    prevIsPausedRef.current = isPaused;
+    if (!hasCheckedIn) return;
+    if (!prev && isPaused) setBgMode('going_to_break');
+    else if (prev && !isPaused) setBgMode('going_from_break');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPaused]);
+
+  // Imperatively load and play the correct video when bgMode changes
+  useEffect(() => {
+    const v = bgVideoRef.current;
+    if (!v || bgMode === 'static') return;
+    const srcs = {
+      climbing: '/media/climbing_animation.mp4',
+      going_to_break: '/media/going_to_break.mov',
+      going_from_break: '/media/going_from_break.mov',
+    } as const;
+    v.src = srcs[bgMode as keyof typeof srcs];
+    v.loop = bgMode === 'climbing';
+    v.load();
+    v.play().catch(() => {});
+  }, [bgMode]);
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
     const id = window.setInterval(() => {
@@ -404,10 +439,25 @@ export function MountainScreen() {
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
           alt=""
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-            artReady ? "opacity-100" : "opacity-0"
+            artReady && bgMode === 'static' ? "opacity-100" : "opacity-0"
           }`}
           onLoad={() => setArtReady(true)}
           decoding="async"
+        />
+
+        {/* Video background: climbing loop + pause/resume transitions */}
+        <video
+          ref={bgVideoRef}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            bgMode !== 'static' ? "opacity-100" : "opacity-0"
+          }`}
+          muted
+          playsInline
+          onLoadedData={() => { if (!artReady) setArtReady(true); }}
+          onEnded={() => {
+            if (bgMode === 'going_to_break') setBgMode('static');
+            if (bgMode === 'going_from_break') setBgMode('climbing');
+          }}
         />
 
         <div
