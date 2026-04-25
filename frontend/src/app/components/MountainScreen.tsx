@@ -708,6 +708,19 @@ export function MountainScreen() {
                           Throw unlocks when you are more focused than {throwTarget.name}.
                         </p>
                       ) : null}
+                      <button
+                        type="button"
+                        onClick={() => captureAndCheck().then((isDistracted) => {
+                          const result = isDistracted ? 'distracted' : 'verified';
+                          setLastCheck(result);
+                          setToastType(result);
+                          setShowToast(true);
+                          window.setTimeout(() => setShowToast(false), 2500);
+                        })}
+                        className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-warm-gray transition-opacity hover:opacity-80"
+                      >
+                        [debug] check now
+                      </button>
                     </div>
                   </div>
                 </div>
