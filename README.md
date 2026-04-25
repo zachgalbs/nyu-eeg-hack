@@ -279,10 +279,10 @@ We care about this problem because we are inside the target user group: students
 
 ## Team
 
-- Candy Xie - UI, frontend, storytelling
-- Travis Sim - backend, focus verification infrastructure
-- Andy Li - calendar/auth integration, product and design support
-- Zachary Galbraith - frontend systems and interaction polish
+- Candy Xie - UI, frontend systems, storytelling
+- Travis Sim - backend
+- Andy Li - design, pitch
+- Zachary Galbraith - calendar/auth integration, backend
 
 ## Links
 
