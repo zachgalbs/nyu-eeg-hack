@@ -776,7 +776,7 @@ export function MountainScreen() {
               </div>
             </div>
           </div>
-          <div className="w-full">
+          <div className="mt-auto w-full">
             <div className="flex items-end gap-3">
               <div className="w-full max-w-[360px] shrink-0">
 
