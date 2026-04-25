@@ -12,7 +12,6 @@ import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
-import { StudyAssistantPanel } from "./StudyAssistantPanel";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import {
   getBuddyCommitment,
@@ -79,7 +78,6 @@ export function MountainScreen() {
   const [distractedCount, setDistractionCount] = useState(0);
   const [distractedChecksTotal, setDistractedChecksTotal] = useState(0);
   const [activeRoast, setActiveRoast] = useState<ActiveRoast | null>(null);
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
@@ -672,14 +670,6 @@ export function MountainScreen() {
                     <Pause className="h-5 w-5" strokeWidth={2} />
                   )}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setAssistantOpen(true)}
-                  className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90"
-                  style={{ fontSize: "13px", fontWeight: 600 }}
-                >
-                  Ask
-                </button>
               </div>
             </div>
           </div>
@@ -867,10 +857,6 @@ export function MountainScreen() {
           <FocusCheckToast type={toastType} lowPressureMode={false} />
         )}
       </div>
-
-      {assistantOpen && (
-        <StudyAssistantPanel onClose={() => setAssistantOpen(false)} />
-      )}
 
       {activeRoast ? (
         <RoastModal
