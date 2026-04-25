@@ -341,7 +341,7 @@ export function MountainScreen() {
               </div>
               {lastRawScore !== null && (
                 <p className="mt-1 text-muted" style={{ fontSize: "12px" }}>
-                  Claude score: {lastRawScore.toFixed(2)} (≥0.5 = distracted)
+                  {Math.round((1 - lastRawScore) * 10)}/10 focused
                 </p>
               )}
             </div>
