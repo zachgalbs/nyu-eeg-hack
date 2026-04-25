@@ -607,7 +607,7 @@ export function MountainScreen() {
         />
 
         <div className={`relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-          <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-3">
+          <div className="mx-auto flex min-h-[calc(100dvh-6rem)] w-full max-w-6xl flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
             <div
               className={`min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-3 ${isPaused ? "opacity-90" : ""}`}
@@ -777,10 +777,10 @@ export function MountainScreen() {
             </div>
           </div>
           <div className="mt-auto w-full">
-            <div className="flex items-end gap-3">
-              <div className="w-full max-w-[360px] shrink-0">
+            <div className="flex items-stretch rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] backdrop-blur-md">
+              <div className="min-w-0 flex-1 p-4">
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
+                <div>
                   <div className="flex items-center gap-4">
                     <div
                       className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mountain/50 text-[10px] text-foreground"
@@ -851,25 +851,27 @@ export function MountainScreen() {
                   </div>
                 </div>
               </div>
-              <div
-                className={`relative ml-auto shrink-0 overflow-hidden rounded-2xl border-2 border-border/40 transition-opacity duration-500 ${
-                  artReady ? "opacity-100" : "opacity-0"
-                }`}
-                style={{
-                  width: 200,
-                  height: 140,
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                }}
-              >
-                <MountainSVG
-                  progress={progress}
-                  climberName="You"
-                  climberColor="#c4b5e8"
-                  trailOnly
-                  isPaused={!hasCheckedIn || isPaused}
-                  friendClimbers={friendClimbers}
-                  throwProjectile={projectile}
-                />
+              <div className="flex shrink-0 items-end p-3">
+                <div
+                  className={`relative overflow-hidden rounded-xl border-2 border-border/40 transition-opacity duration-500 ${
+                    artReady ? "opacity-100" : "opacity-0"
+                  }`}
+                  style={{
+                    width: 200,
+                    height: 140,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  <MountainSVG
+                    progress={progress}
+                    climberName="You"
+                    climberColor="#c4b5e8"
+                    trailOnly
+                    isPaused={!hasCheckedIn || isPaused}
+                    friendClimbers={friendClimbers}
+                    throwProjectile={projectile}
+                  />
+                </div>
               </div>
             </div>
           </div>
