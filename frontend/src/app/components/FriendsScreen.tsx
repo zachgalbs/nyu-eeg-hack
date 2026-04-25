@@ -36,7 +36,14 @@ export function FriendsScreen() {
     try {
       const res = await fetch('/api/friends/invite', { method: 'POST' });
       const data = await res.json();
+      if (data.error === 'reauth_required') {
+        window.location.href = '/api/auth/login';
+        return;
+      }
+      if (!res.ok) throw new Error(data.error ?? 'Failed to generate invite');
       setInviteLink(data.link);
+    } catch (err) {
+      console.error('[invite]', err);
     } finally {
       setInviting(false);
     }
