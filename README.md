@@ -318,6 +318,5 @@ We care about this problem because we are inside the target user group: students
 
 ## Links
 
-- GitHub Repo: [add link]
-- Live Demo: [add link]
-- Demo Video: [add link]
+- Written Description: [[Docs](https://docs.google.com/document/d/1ph8xvU7aXd4bVt_SnOja5ocCN6N0PLpWgEO2ofITH88/edit?usp=sharing)]
+- Demo Video: [[Link](https://www.youtube.com/watch?v=lC2OZYatt8Y)]
