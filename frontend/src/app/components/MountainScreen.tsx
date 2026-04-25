@@ -88,6 +88,8 @@ export function MountainScreen() {
   const summitSent = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [uiVisible, setUiVisible] = useState(true);
   const [artReady, setArtReady] = useState(false);
   const [timelineFlash, setTimelineFlash] = useState<"checkin" | "focus" | "summit" | null>(null);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
@@ -201,6 +203,26 @@ export function MountainScreen() {
       .catch(() => {});
     return () => { stream?.getTracks().forEach((t) => t.stop()); };
   }, [hasCheckedIn]);
+
+  // Auto-hide UI after 4s of inactivity (only during active session)
+  useEffect(() => {
+    if (!hasCheckedIn || isPaused) {
+      setUiVisible(true);
+      return;
+    }
+    const resetTimer = () => {
+      setUiVisible(true);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setUiVisible(false), 4000);
+    };
+    resetTimer();
+    const events = ['mousemove', 'mousedown', 'touchstart', 'keydown'] as const;
+    events.forEach((e) => document.addEventListener(e, resetTimer, { passive: true }));
+    return () => {
+      events.forEach((e) => document.removeEventListener(e, resetTimer));
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [hasCheckedIn, isPaused]);
 
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
@@ -467,7 +489,7 @@ export function MountainScreen() {
     <>
       <video ref={videoRef} className="hidden" muted playsInline />
       <canvas ref={canvasRef} className="hidden" />
-      <div className="fixed inset-0 z-30 overflow-y-auto bg-background-solid">
+      <div className={`fixed inset-0 z-30 overflow-y-auto bg-background-solid ${!uiVisible ? "cursor-none" : ""}`}>
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
           alt=""
@@ -498,7 +520,7 @@ export function MountainScreen() {
           aria-hidden
         />
 
-        <div className="relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5">
+        <div className={`relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
           <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
             <div
