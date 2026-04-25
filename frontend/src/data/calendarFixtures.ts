@@ -14,6 +14,7 @@ export type CalendarEvent = {
   end: Date;
   ownerId: 'me' | string;
   ownerName: string;
+  allDay?: boolean;
 };
 
 /** Demo friends' schedules for the ISO week that contains `weekContaining`. */

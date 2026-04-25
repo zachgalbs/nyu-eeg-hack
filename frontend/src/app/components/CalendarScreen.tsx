@@ -8,6 +8,7 @@ import {
   type CalendarEvent,
 } from '../../data/calendarFixtures';
 import { getWeeklyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
+import { getGoogleToken } from '../../lib/auth';
 
 function formatRange(e: CalendarEvent) {
   return `${format(e.start, 'h:mm a')} – ${format(e.end, 'h:mm a')}`;
@@ -23,12 +24,14 @@ export function CalendarScreen() {
   const [buddyPickByEvent, setBuddyPickByEvent] = useState<Record<string, string>>({});
   const allEvents = useMemo(() => getCalendarFixture(today), [today]);
   const dayEvents = eventsForDay(today, allEvents);
+  const token = getGoogleToken();
+  const [authError] = useState(false);
   const mine = dayEvents.filter((e) => e.ownerId === 'me');
   const others = dayEvents.filter((e) => e.ownerId !== 'me');
   const weekly = useMemo(() => getWeeklyCommitmentSummary(), []);
   const plannedTodayMinutes = useMemo(
     () => mine.reduce((sum, event) => sum + durationMinutes(event), 0),
-    [mine]
+    [mine],
   );
   const buddyOptions = useMemo(() => {
     const map = new Map<string, string>();
@@ -55,21 +58,54 @@ export function CalendarScreen() {
     navigate(`/mountain/${event.id}`);
   };
 
-  return (
-    <div className="px-4 pb-6 pt-10 sm:px-6 lg:px-0 lg:pt-12">
-      <div className="mb-6 h-px w-16 rounded-full bg-mountain/25" aria-hidden />
+  const authBanner = !token ? (
+    <div
+      className="mb-6 flex items-start gap-4 border border-terracotta/40 bg-card p-4"
+      style={{ borderRadius: '14px' }}
+    >
+      <div className="flex-1">
+        <p className="mb-1 font-semibold text-ink" style={{ fontSize: '14px' }}>Connect Google Calendar</p>
+        <p className="text-warm-gray" style={{ fontSize: '13px' }}>See your real events — demo data shown for now.</p>
+      </div>
+      <a
+        href="/api/auth/login"
+        className="shrink-0 rounded-full bg-primary px-4 py-2 text-primary-foreground transition-opacity hover:opacity-90"
+        style={{ fontSize: '13px', fontWeight: 600 }}
+      >
+        Connect
+      </a>
+    </div>
+  ) : authError ? (
+    <div
+      className="mb-6 flex items-start gap-4 border border-coral/40 bg-card p-4"
+      style={{ borderRadius: '14px' }}
+    >
+      <div className="flex-1">
+        <p className="mb-1 font-semibold text-ink" style={{ fontSize: '14px' }}>Session expired</p>
+        <p className="text-warm-gray" style={{ fontSize: '13px' }}>Reconnect to sync your calendar.</p>
+      </div>
+      <a
+        href="/api/auth/login"
+        className="shrink-0 rounded-full bg-primary px-4 py-2 text-primary-foreground transition-opacity hover:opacity-90"
+        style={{ fontSize: '13px', fontWeight: 600 }}
+      >
+        Reconnect
+      </a>
+    </div>
+  ) : null;
 
+  return (
+    <div className="px-4 pb-6 pt-10 sm:px-6">
       <header className="mb-6">
-        <h1
-          className="mb-1 text-ink"
-          style={{ fontFamily: 'var(--font-serif)', fontSize: '32px' }}
-        >
+        <h1 className="mb-1 text-ink" style={{ fontFamily: 'var(--font-serif)', fontSize: '32px' }}>
           Calendar
         </h1>
         <p className="text-warm-gray" style={{ fontSize: '13px' }}>
           Focus here is study volume first; week view moved to Profile.
         </p>
       </header>
+
+      {authBanner}
 
       <section className="mb-6 rounded-2xl border border-border bg-card/85 p-4 sm:p-5">
         <p className="mb-3 text-[11px] uppercase tracking-wide text-warm-gray">Study load</p>
@@ -140,8 +176,7 @@ export function CalendarScreen() {
                       className="mb-4 border-l-4 border-moss bg-mountain/5 py-2 pl-3 text-ink"
                       style={{ fontSize: '13px' }}
                     >
-                      Climbing with {peers.join(', ')} — overlapping time counts as a check-in
-                      together.
+                      Climbing with {peers.join(', ')} — overlapping time counts as a check-in together.
                     </p>
                   )}
                   {buddyOptions.length > 0 ? (

@@ -7,9 +7,11 @@ import { MountainScreen } from "./components/MountainScreen";
 import { SummitScreen } from "./components/SummitScreen";
 import { FriendsScreen } from "./components/FriendsScreen";
 import { ProfileScreen } from "./components/ProfileScreen";
+import { JoinScreen } from "./components/JoinScreen";
 
 export const router = createBrowserRouter([
   { path: "/welcome", Component: WelcomeScreen },
+  { path: "/join", Component: JoinScreen },
   {
     path: "/",
     Component: Root,
