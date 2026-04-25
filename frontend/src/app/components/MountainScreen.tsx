@@ -17,7 +17,7 @@ import {
   getBuddyCommitment,
   saveSessionOutcome,
 } from "../../lib/compcal-state";
-import { getSortedFriendPresence } from "../../lib/friends-presence";
+import { type FriendPresence } from "../../lib/friends-presence";
 import {
   getTabIdentity,
   publishRoast,
@@ -95,6 +95,7 @@ export function MountainScreen() {
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
   const [snowballMode, setSnowballMode] = useState<'throw' | 'hit' | null>(null);
   const snowballVideoRef = useRef<HTMLVideoElement>(null);
+  const [realFriends, setRealFriends] = useState<FriendPresence[]>([]);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
   // Background video state
@@ -141,6 +142,47 @@ export function MountainScreen() {
     v.load();
     v.play().catch(() => {});
   }, [snowballMode]);
+
+  useEffect(() => {
+    let cancelled = false;
+    type ApiFriend = {
+      user_id: string;
+      name: string;
+      last_event: string | null;
+      is_active: boolean;
+      last_summit: string | null;
+    };
+    const fetchFriends = () => {
+      fetch('/api/friends/list')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { friends: ApiFriend[] } | null) => {
+          if (cancelled || !data?.friends) return;
+          setRealFriends(
+            data.friends.map((f) => ({
+              id: f.user_id,
+              name: f.name,
+              currentTask: f.last_event,
+              focusedTimeToday: 0,
+              altitude: 0,
+              status: f.is_active ? 'climbing' : (f.last_summit ? 'summited' : 'idle'),
+            }))
+          );
+        })
+        .catch(() => {});
+    };
+    fetchFriends();
+    const id = window.setInterval(fetchFriends, 30000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    fetch('/api/sessions/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventTitle: event.name }),
+    }).catch(() => {});
+  }, [hasCheckedIn, event.name]);
 
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
@@ -311,8 +353,12 @@ export function MountainScreen() {
       : `${blockMinutes}m this block`;
 
   const friendPresence = useMemo(
-    () => getSortedFriendPresence().filter((friend) => !friend.isUser),
-    []
+    () => [...realFriends].sort((a, b) => {
+      if (a.status === 'climbing' && b.status !== 'climbing') return -1;
+      if (a.status !== 'climbing' && b.status === 'climbing') return 1;
+      return 0;
+    }),
+    [realFriends]
   );
   const activeFriends = friendPresence.filter((friend) => friend.status === "climbing");
   const friendFocusMap = useMemo(

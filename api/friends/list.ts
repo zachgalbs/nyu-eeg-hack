@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         FROM sessions active
         WHERE active.user_id = u.user_id
           AND active.ended_at IS NULL
-          AND active.started_at > NOW() - INTERVAL '10 minutes'
+          AND active.started_at > NOW() - INTERVAL '4 hours'
       ) IS FALSE      AS is_active
     FROM friendships f
     JOIN users u ON (
