@@ -306,6 +306,7 @@ export function MountainScreen() {
 
   // Auto-hide UI after 4s of inactivity (only during active session)
   useEffect(() => {
+    if (meetUpActive) return; // overlay effect owns uiVisible while the video plays
     if (!hasCheckedIn || isPaused) {
       setUiVisible(true);
       return;
@@ -322,7 +323,7 @@ export function MountainScreen() {
       events.forEach((e) => document.removeEventListener(e, resetTimer));
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [hasCheckedIn, isPaused]);
+  }, [hasCheckedIn, isPaused, meetUpActive]);
 
   // Hide the UI immediately when an overlay animation (snowball / break transitions) plays
   useEffect(() => {
