@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useNavigate } from 'react-router';
 import { format, startOfDay } from 'date-fns';
 import { eventsForDay, coClimbingNames, type CalendarEvent } from '../../data/calendarFixtures';
 import { getWeeklyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
 import { getGoogleToken } from '../../lib/auth';
 import { fetchMyEventsThisWeek, AuthError } from '../../lib/googleCalendar';
+
+type PendingNavigate = {
+  path: string;
+  state: { title: string; duration: number };
+};
 
 function formatRange(e: CalendarEvent) {
   return `${format(e.start, 'h:mm a')} – ${format(e.end, 'h:mm a')}`;
@@ -18,26 +23,34 @@ export function CalendarScreen() {
   const navigate = useNavigate();
   const today = useMemo(() => startOfDay(new Date()), []);
   const token = getGoogleToken();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const showSuitingUp = searchParams.get('suiting_up') === '1';
-  const suitingUpRef = useRef<HTMLVideoElement>(null);
+
+  const [pendingNavigate, setPendingNavigate] = useState<PendingNavigate | null>(null);
+  const meetVideoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (!showSuitingUp) return;
-    const v = suitingUpRef.current;
+    if (!pendingNavigate) return;
+    const v = meetVideoRef.current;
     if (!v) return;
     v.currentTime = 0;
     v.play().catch(() => {
-      const params = new URLSearchParams(searchParams);
-      params.delete('suiting_up');
-      setSearchParams(params, { replace: true });
+      // If autoplay is blocked, skip straight to the destination
+      navigate(pendingNavigate.path, { state: pendingNavigate.state });
+      setPendingNavigate(null);
     });
-  }, [showSuitingUp, searchParams, setSearchParams]);
+  }, [pendingNavigate, navigate]);
 
-  const clearSuitingUp = () => {
-    const params = new URLSearchParams(searchParams);
-    params.delete('suiting_up');
-    setSearchParams(params, { replace: true });
+  const finishMeetUp = () => {
+    if (!pendingNavigate) return;
+    const target = pendingNavigate;
+    setPendingNavigate(null);
+    navigate(target.path, { state: target.state });
+  };
+
+  const startSession = (event: CalendarEvent) => {
+    setPendingNavigate({
+      path: `/mountain/${event.id}`,
+      state: { title: event.title, duration: durationMinutes(event) },
+    });
   };
 
   const [myEvents, setMyEvents] = useState<CalendarEvent[]>([]);
@@ -84,9 +97,7 @@ export function CalendarScreen() {
         createdAt: new Date().toISOString(),
       });
     }
-    navigate(`/mountain/${event.id}`, {
-      state: { title: event.title, duration: durationMinutes(event) },
-    });
+    startSession(event);
   };
 
   const authBanner = !token ? (
@@ -127,20 +138,20 @@ export function CalendarScreen() {
 
   return (
     <div className="px-4 pb-6 pt-10 sm:px-6">
-      {showSuitingUp && (
+      {pendingNavigate && (
         <div className="fixed inset-0 z-[70] bg-black">
           <video
-            ref={suitingUpRef}
-            src="/media/suiting_up.mp4"
+            ref={meetVideoRef}
+            src="/media/meeting_with_friends.mp4"
             className="absolute inset-0 h-full w-full object-cover"
             playsInline
             autoPlay
-            onEnded={clearSuitingUp}
-            onError={clearSuitingUp}
+            onEnded={finishMeetUp}
+            onError={finishMeetUp}
           />
           <button
             type="button"
-            onClick={clearSuitingUp}
+            onClick={finishMeetUp}
             className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1 text-xs text-white backdrop-blur hover:bg-white/25"
           >
             Skip
@@ -249,11 +260,7 @@ export function CalendarScreen() {
                 <div className={`grid gap-2 ${buddyOptions.length > 0 ? 'sm:grid-cols-2' : ''}`}>
                   <button
                     type="button"
-                    onClick={() =>
-                      navigate(`/mountain/${event.id}`, {
-                        state: { title: event.title, duration: durationMinutes(event) },
-                      })
-                    }
+                    onClick={() => startSession(event)}
                     className={`w-full py-3 transition-opacity hover:opacity-90 ${
                       buddyOptions.length > 0
                         ? 'border border-border bg-card text-foreground'
