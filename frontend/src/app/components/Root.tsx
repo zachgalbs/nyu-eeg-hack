@@ -4,9 +4,8 @@ import { TabBar } from "./TabBar";
 export function Root() {
   const location = useLocation();
 
-  const hideTabBar =
-    location.pathname.includes('/summit') ||
-    location.pathname.startsWith('/mountain');
+  // Keep tabs visible during mountain sessions for guaranteed escape/navigation.
+  const hideTabBar = location.pathname.includes('/summit');
   const showTabBar = !hideTabBar;
 
   return (

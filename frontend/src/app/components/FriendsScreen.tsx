@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { MiniMountain } from "./MiniMountain";
 import { getUserName } from "../../lib/auth";
+import { getSessionOutcomes } from "../../lib/compcal-state";
+
+type TimeFilter = 'today' | 'week' | 'month';
 
 interface Friend {
   user_id: string;
@@ -19,8 +22,8 @@ export function FriendsScreen() {
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copying, setCopying] = useState(false);
   const [inviting, setInviting] = useState(false);
-
-  const myName = getUserName() ?? 'You';
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('today');
+  const latestBuddyCompletion = getSessionOutcomes().find((s) => Boolean(s.buddyName));
 
   useEffect(() => {
     fetch('/api/friends/list')
@@ -98,6 +101,18 @@ export function FriendsScreen() {
         </div>
       )}
 
+      {latestBuddyCompletion && (
+        <div
+          className="mb-4 border border-moss/50 bg-moss/10 px-4 py-3"
+          style={{ borderRadius: '12px' }}
+        >
+          <p className="text-[12px] text-moss">
+            Buddy check-in complete: you and {latestBuddyCompletion.buddyName} finished{' '}
+            {latestBuddyCompletion.eventTitle}.
+          </p>
+        </div>
+      )}
+
       {topThree.length > 0 && (
         <div
           className="bg-card p-6 mb-6 border border-border"
@@ -148,53 +163,73 @@ export function FriendsScreen() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {friends.map((friend) => (
-            <div
-              key={friend.user_id}
-              className="p-4 bg-card border border-border"
-              style={{ borderRadius: '16px' }}
-            >
-              <div className="flex items-center gap-3">
-                <ClimberAvatar
-                  name={friend.name}
-                  size={40}
-                  color={friend.is_active ? '#5C7A3E' : '#D99A8F'}
-                  isActive={friend.is_active}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2 mb-1">
-                    <span className="text-ink font-semibold">{friend.name}</span>
-                    {friend.last_event_title && (
-                      <span
-                        className="text-warm-gray italic truncate"
-                        style={{ fontSize: '13px' }}
-                      >
-                        {friend.last_event_title}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-warm-gray" style={{ fontSize: '13px' }}>
-                    {friend.is_active
-                      ? 'Climbing now'
-                      : friend.last_session_started_at
-                      ? `Last seen ${new Date(friend.last_session_started_at).toLocaleDateString()}`
-                      : 'Never climbed yet'}
-                  </span>
-                </div>
-                {friend.is_active && (
-                  <div className="w-2 h-2 bg-moss rounded-full animate-pulse" />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+        <>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {(['today', 'week', 'month'] as TimeFilter[]).map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setTimeFilter(filter)}
+                className={`px-4 py-2 border transition-colors ${
+                  timeFilter === filter
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-card text-warm-gray'
+                }`}
+                style={{ borderRadius: '999px', fontSize: '14px', fontWeight: 600 }}
+              >
+                {filter === 'today' ? 'Today' : filter === 'week' ? 'This Week' : 'This Month'}
+              </button>
+            ))}
+          </div>
 
-      {activeFriends.length > 0 && (
-        <p className="mt-6 text-center text-warm-gray" style={{ fontSize: '13px' }}>
-          {activeFriends.length} friend{activeFriends.length !== 1 ? 's' : ''} climbing right now
-        </p>
+          <div className="space-y-3">
+            {friends.map((friend) => (
+              <div
+                key={friend.user_id}
+                className="p-4 bg-card border border-border"
+                style={{ borderRadius: '16px' }}
+              >
+                <div className="flex items-center gap-3">
+                  <ClimberAvatar
+                    name={friend.name}
+                    size={40}
+                    color={friend.is_active ? '#5C7A3E' : '#D99A8F'}
+                    isActive={friend.is_active}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-1">
+                      <span className="text-ink font-semibold">{friend.name}</span>
+                      {friend.last_event_title && (
+                        <span
+                          className="text-warm-gray italic truncate"
+                          style={{ fontSize: '13px' }}
+                        >
+                          {friend.last_event_title}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-warm-gray" style={{ fontSize: '13px' }}>
+                      {friend.is_active
+                        ? 'Climbing now'
+                        : friend.last_session_started_at
+                        ? `Last seen ${new Date(friend.last_session_started_at).toLocaleDateString()}`
+                        : 'Never climbed yet'}
+                    </span>
+                  </div>
+                  {friend.is_active && (
+                    <div className="w-2 h-2 bg-moss rounded-full animate-pulse" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {activeFriends.length > 0 && (
+            <p className="mt-6 text-center text-warm-gray" style={{ fontSize: '13px' }}>
+              {activeFriends.length} friend{activeFriends.length !== 1 ? 's' : ''} climbing right now
+            </p>
+          )}
+        </>
       )}
     </div>
   );

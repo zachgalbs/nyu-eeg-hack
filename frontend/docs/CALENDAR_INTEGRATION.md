@@ -22,6 +22,20 @@ This prototype uses **mock events** in [`src/data/calendarFixtures.ts`](../src/d
 - **Incremental:** `syncToken` via `events.list` incremental sync when supported; otherwise periodic poll while the app is open.
 - **IDs:** Store Google `event.id` + `iCalUID` in your DB or local cache to dedupe updates.
 
+## Accountability event mapping (current app model)
+
+For the summit/profile outcomes shown in the prototype, each completed session can be emitted
+as an internal event record:
+
+- `eventId`, `eventTitle`
+- `plannedMinutes`, `completedMinutes`
+- `focusScore`, `distractedChecks`
+- `keptCommitment` (boolean)
+- optional `buddyId`, `buddyName` for mutual support check-ins
+
+When Google sync is added, these accountability records should remain separate from raw calendar
+events so product analytics and privacy controls are easier to manage.
+
 ## Overlaps with friends
 
 - Today’s prototype treats “friends” as **fixture rows**. In production, friends’ busy intervals would come from **their shared availability** or **opt-in shared calendar** endpoints—not from scraping private calendars without consent.
