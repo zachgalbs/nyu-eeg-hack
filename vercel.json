@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd frontend && pnpm install && pnpm build",
+  "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && pnpm install",
+  "installCommand": "cd frontend && npm ci",
   "framework": "vite",
-  "nodeVersion": "20.x"
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
