@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router";
 import {
   Pause,
   Play,
-  ShieldCheck,
   HandHeart,
   LogOut,
   Users,
@@ -749,10 +748,6 @@ export function MountainScreen() {
 
                 <div className="rounded-xl border border-border bg-card/95 px-3 py-2 text-xs text-warm-gray backdrop-blur-md">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-foreground/90">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Focus checks are periodic snapshots only (no continuous recording).
-                    </span>
                     <button
                       type="button"
                       onClick={toggleFocusChecks}
