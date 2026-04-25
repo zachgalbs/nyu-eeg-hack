@@ -25,12 +25,16 @@ function formatHMS(totalSeconds: number) {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-async function checkFocusViaAPI(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<boolean> {
+async function checkFocusViaAPI(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+): Promise<{ isDistracted: boolean; score: number; dataUrl: string }> {
   canvas.width = video.videoWidth || 320;
   canvas.height = video.videoHeight || 240;
   const ctx = canvas.getContext('2d')!;
   ctx.drawImage(video, 0, 0);
-  const base64 = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+  const base64 = dataUrl.split(',')[1];
 
   const res = await fetch('/api/check-focus', {
     method: 'POST',
@@ -38,7 +42,8 @@ async function checkFocusViaAPI(video: HTMLVideoElement, canvas: HTMLCanvasEleme
     body: JSON.stringify({ imageBase64: base64 }),
   });
   const data = await res.json();
-  return (data.score ?? 0) >= 0.5;
+  const score = data.score ?? 0;
+  return { isDistracted: score >= 0.5, score, dataUrl };
 }
 
 export function MountainScreen() {
@@ -58,6 +63,8 @@ export function MountainScreen() {
   const [progress, setProgress] = useState(0);
   const [focusScore, setFocusScore] = useState(97);
   const [lastCheck, setLastCheck] = useState<'verified' | 'distracted'>('verified');
+  const [lastRawScore, setLastRawScore] = useState<number | null>(null);
+  const [lastFrameSrc, setLastFrameSrc] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<'verified' | 'distracted'>('verified');
   const [distractedCount, setDistractionCount] = useState(0);
@@ -121,6 +128,7 @@ export function MountainScreen() {
 
     const id = window.setInterval(async () => {
       let isDistracted: boolean;
+      let rawScore: number | null = null;
 
       const video = videoRef.current;
       const canvas = canvasRef.current;
@@ -128,7 +136,10 @@ export function MountainScreen() {
 
       if (hasCamera) {
         try {
-          isDistracted = await checkFocusViaAPI(video!, canvas!);
+          const result = await checkFocusViaAPI(video!, canvas!);
+          isDistracted = result.isDistracted;
+          rawScore = result.score;
+          setLastFrameSrc(result.dataUrl);
         } catch {
           isDistracted = Math.random() < 0.15;
         }
@@ -136,6 +147,7 @@ export function MountainScreen() {
         isDistracted = Math.random() < 0.15;
       }
 
+      setLastRawScore(rawScore);
       const checkResult = isDistracted ? 'distracted' : 'verified';
       setLastCheck(checkResult);
       setToastType(checkResult);
@@ -156,7 +168,7 @@ export function MountainScreen() {
       }
 
       window.setTimeout(() => setShowToast(false), 2500);
-    }, 10000);
+    }, 60000);
 
     return () => window.clearInterval(id);
   }, [isPaused]);
@@ -274,17 +286,26 @@ export function MountainScreen() {
 
         <div className="absolute bottom-24 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:left-6 sm:right-6">
           <div className="flex items-center gap-4">
-            <div
-              className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
-              style={{ width: 80, height: 60 }}
-            >
-              <div className="text-center">
-                <div
-                  className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
-                />
-                {isPaused ? "PAUSED" : "LIVE"}
+            {lastFrameSrc ? (
+              <img
+                src={lastFrameSrc}
+                alt="Last focus check snapshot"
+                className="shrink-0 rounded-lg object-cover"
+                style={{ width: 80, height: 60 }}
+              />
+            ) : (
+              <div
+                className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
+                style={{ width: 80, height: 60 }}
+              >
+                <div className="text-center">
+                  <div
+                    className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
+                  />
+                  {isPaused ? "PAUSED" : "LIVE"}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="min-w-0 flex-1">
               <div
@@ -305,6 +326,11 @@ export function MountainScreen() {
                 />
                 <span className="text-muted" style={{ fontSize: "13px" }}>
                   {lastCheck === "verified" ? "focused" : "distracted"}
+                  {lastRawScore !== null && (
+                    <span className="ml-2 opacity-60">
+                      (Claude: {lastRawScore.toFixed(2)})
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
