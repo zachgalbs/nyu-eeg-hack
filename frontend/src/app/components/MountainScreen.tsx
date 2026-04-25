@@ -36,12 +36,21 @@ async function checkFocusViaAPI(
   const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
   const base64 = dataUrl.split(',')[1];
 
+  console.log('[focus] videoWidth=%d videoHeight=%d readyState=%d dataUrl.length=%d',
+    video.videoWidth, video.videoHeight, video.readyState, dataUrl.length);
+
   const res = await fetch('/api/check-focus', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ imageBase64: base64 }),
   });
-  const data = await res.json();
+
+  const text = await res.text();
+  console.log('[focus] status=%d body=%s', res.status, text);
+
+  if (!res.ok) throw new Error(`check-focus ${res.status}: ${text}`);
+
+  const data = JSON.parse(text);
   const score = data.score ?? 0;
   return { isDistracted: score >= 0.5, score, dataUrl };
 }
@@ -186,13 +195,6 @@ export function MountainScreen() {
 
   return (
     <>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ position: 'fixed', top: -9999, left: -9999, width: 1, height: 1 }}
-      />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       <div className="fixed inset-0 z-30 overflow-hidden bg-background-solid">
@@ -306,26 +308,22 @@ export function MountainScreen() {
 
         <div className="absolute bottom-24 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:left-6 sm:right-6">
           <div className="flex items-center gap-4">
-            {lastFrameSrc ? (
-              <img
-                src={lastFrameSrc}
-                alt="Last focus check snapshot"
-                className="shrink-0 rounded-lg object-cover"
-                style={{ width: 80, height: 60 }}
+            <div className="relative shrink-0 overflow-hidden rounded-lg" style={{ width: 80, height: 60 }}>
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="absolute inset-0 h-full w-full object-cover"
               />
-            ) : (
-              <div
-                className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
-                style={{ width: 80, height: 60 }}
-              >
-                <div className="text-center">
-                  <div
-                    className={`mx-auto mb-1 h-2 w-2 rounded-full bg-primary ${isPaused ? "" : "animate-pulse"}`}
-                  />
-                  {isPaused ? "PAUSED" : "LIVE"}
-                </div>
-              </div>
-            )}
+              {lastFrameSrc && (
+                <img
+                  src={lastFrameSrc}
+                  alt="Last focus check snapshot"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              )}
+            </div>
 
             <div className="min-w-0 flex-1">
               <div
