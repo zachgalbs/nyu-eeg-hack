@@ -3,42 +3,48 @@
 :root {
   --font-size: 16px;
 
-  /* Alpine Dawn Palette */
-  --sky-top: #F4D8BA;
-  --sky-bottom: #FBF2E4;
-  --mountain: #4A6B54;
-  --snow: #FDFBF7;
-  --terracotta: #C66B52;
-  --dusty-rose: #D99A8F;
-  --ink: #1F2028;
-  --warm-gray: #746B62;
-  --moss: #6B8E5A;
-  --coral: #E89A7F;
+  /**
+   * Snow Mountain Retro — single coherent theme (pixel art reference).
+   * Tailwind names (terracotta, moss, …) are kept for compatibility; values map to this palette.
+   */
+  --sky-top: #2a3d47;
+  --sky-bottom: #1a242c;
+  --mountain: #4a5568;
+  --snow: #eef1f5;
+  --terracotta: #c4b5e8;
+  --dusty-rose: #6db3a8;
+  --ink: #e8ecf2;
+  --warm-gray: #9aa8b4;
+  --moss: #6bc49a;
+  --coral: #e8a0b8;
 
-  /* CompCal Theme Tokens */
-  --background: linear-gradient(180deg, #F4D8BA 0%, #FBF2E4 100%);
-  --background-solid: #FBF2E4;
-  --foreground: #1F2028;
-  --card: #FDFBF7;
-  --card-foreground: #1F2028;
-  --primary: #C66B52;
-  --primary-foreground: #FDFBF7;
-  --secondary: #D99A8F;
-  --secondary-foreground: #1F2028;
-  --muted: #746B62;
-  --success: #6B8E5A;
-  --warning: #E89A7F;
-  --border: rgba(74, 107, 84, 0.12);
+  --background: linear-gradient(
+      180deg,
+      rgba(36, 55, 72, 0.94) 0%,
+      rgba(26, 36, 44, 0.97) 100%
+    ),
+    url("/media/snow-mountain-retro-theme.png");
+  --background-solid: #222c35;
+  --foreground: #e8ecf2;
+  --card: rgba(34, 44, 56, 0.88);
+  --card-foreground: #e8ecf2;
+  --primary: #c4b5e8;
+  --primary-foreground: #141820;
+  --secondary: #6db3a8;
+  --secondary-foreground: #0f1418;
+  --muted: #9aa8b4;
+  --success: #6bc49a;
+  --warning: #e8a0b8;
+  --border: rgba(232, 236, 242, 0.14);
 
-  /* Typography */
-  --font-serif: 'Instrument Serif', serif;
-  --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: "Instrument Serif", serif;
+  --font-sans: "Inter", -apple-system, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-pixel: "Silkscreen", system-ui, sans-serif;
 
   --font-weight-medium: 600;
   --font-weight-normal: 400;
 
-  /* Spacing (4-point system) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -49,13 +55,11 @@
   --space-16: 64px;
   --space-24: 96px;
 
-  /* Radius */
   --radius-card: 16px;
   --radius-input: 8px;
   --radius-full: 999px;
 
-  /* Shadow */
-  --shadow-card: 0 2px 8px rgba(31, 32, 40, 0.06), 0 12px 32px rgba(31, 32, 40, 0.04);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45), 0 12px 40px rgba(0, 0, 0, 0.25);
 }
 
 @theme inline {
@@ -90,9 +94,12 @@
   }
 
   body {
-    background: linear-gradient(180deg, #F4D8BA 0%, #FBF2E4 100%);
+    background: var(--background);
+    background-size: cover;
+    background-position: center top;
     background-attachment: fixed;
-    color: var(--ink);
+    background-repeat: no-repeat;
+    color: var(--foreground);
     font-family: var(--font-sans);
     min-height: 100vh;
   }
@@ -102,10 +109,11 @@
   }
 
   h1 {
-    font-family: var(--font-serif);
-    font-size: 32px;
+    font-family: var(--font-pixel);
+    font-size: 28px;
     font-weight: 400;
     line-height: 1.2;
+    letter-spacing: 0.02em;
   }
 
   h2 {

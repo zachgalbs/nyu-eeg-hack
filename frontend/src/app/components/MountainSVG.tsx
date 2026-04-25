@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { motion } from "motion/react";
 import { ClimberAvatar } from "./ClimberAvatar";
 
@@ -6,6 +7,11 @@ interface MountainSVGProps {
   climberName?: string;
   climberColor?: string;
   showTrail?: boolean;
+  /**
+   * When true, only trail / markers / climber draw — for layering over the
+   * pixel-art `snow-mountain-retro-theme.png` background.
+   */
+  trailOnly?: boolean;
 }
 
 const trailPoints = [
@@ -46,69 +52,121 @@ function getPositionOnTrail(progress: number) {
   };
 }
 
+function footprintSamples(progress: number) {
+  const from = Math.max(0, progress - 15);
+  const out: { x: number; y: number; fade: number }[] = [];
+  for (let p = from; p <= progress; p += 2.2) {
+    const pos = getPositionOnTrail(Math.min(100, p));
+    const fade = (p - from) / Math.max(0.01, progress - from);
+    out.push({ ...pos, fade });
+  }
+  return out;
+}
+
+const trailStroke = (trail: boolean) => (trail ? "#c8e8ff" : "#FDFBF7");
+const footprintFill = () => "#dceefc";
+const milestoneFill = (trail: boolean) => (trail ? "#ffffff" : "#FDFBF7");
+
 export function MountainSVG({
   progress,
   climberName = "You",
   climberColor = "#C66B52",
   showTrail = true,
+  trailOnly = false,
 }: MountainSVGProps) {
+  const uid = useId().replace(/:/g, "");
+  const skyGradId = `sky-${uid}`;
   const position = getPositionOnTrail(progress);
 
   const trailPath = trailPoints
-    .map((point, i) => `${i === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
-    .join(' ');
+    .map((point, i) => `${i === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+
+  const prints = footprintSamples(progress);
+  const tw = trailOnly;
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative h-full w-full">
       <svg
         viewBox="0 0 100 100"
-        className="w-full h-full"
+        className="h-full w-full"
         preserveAspectRatio="xMidYMid slice"
       >
-        <defs>
-          <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#F4D8BA" />
-            <stop offset="100%" stopColor="#FBF2E4" />
-          </linearGradient>
-        </defs>
+        {!trailOnly && (
+          <>
+            <defs>
+              <linearGradient id={skyGradId} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#2a3d47" />
+                <stop offset="100%" stopColor="#1a242c" />
+              </linearGradient>
+            </defs>
+            <rect width="100" height="100" fill={`url(#${skyGradId})`} />
 
-        <rect width="100" height="100" fill="url(#skyGradient)" />
+            <path
+              d="M -8 82 L 8 58 L 20 62 L 14 100 L -8 100 Z"
+              fill="var(--mountain)"
+              opacity="0.35"
+            />
+            <path
+              d="M 82 76 L 96 52 L 100 56 L 100 100 L 76 100 Z"
+              fill="var(--mountain)"
+              opacity="0.28"
+            />
 
-        <path
-          d="M 0 85 Q 15 70, 25 68 L 30 60 Q 35 52, 40 48 L 45 40 Q 50 30, 55 25 L 60 15 Q 63 8, 65 5 L 68 10 Q 70 15, 72 18 L 75 25 Q 78 35, 80 40 L 85 50 Q 88 58, 90 62 L 95 70 Q 98 78, 100 85 L 100 100 L 0 100 Z"
-          fill="#4A6B54"
-          opacity="0.9"
-        />
+            <path
+              d="M 0 85 Q 15 70, 25 68 L 30 60 Q 35 52, 40 48 L 45 40 Q 50 30, 55 25 L 60 15 Q 63 8, 65 5 L 68 10 Q 70 15, 72 18 L 75 25 Q 78 35, 80 40 L 85 50 Q 88 58, 90 62 L 95 70 Q 98 78, 100 85 L 100 100 L 0 100 Z"
+              fill="var(--mountain)"
+              opacity="0.9"
+            />
 
-        <path
-          d="M 58 15 Q 60 10, 62 8 L 64 5 L 66 8 Q 68 12, 70 15 L 58 15 Z"
-          fill="#FDFBF7"
-          opacity="0.95"
-        />
+            <path
+              d="M 58 15 Q 60 10, 62 8 L 64 5 L 66 8 Q 68 12, 70 15 L 58 15 Z"
+              fill="var(--snow)"
+              opacity="0.95"
+            />
+            <path
+              d="M 52 22 Q 56 16, 62 18 L 65 22 Q 60 26, 55 28 Q 53 24, 52 22 Z"
+              fill="var(--snow)"
+              opacity="0.78"
+            />
+          </>
+        )}
 
         {showTrail && (
           <path
             d={trailPath}
             fill="none"
-            stroke="#FDFBF7"
-            strokeWidth="0.3"
-            strokeDasharray="1,1"
-            opacity="0.6"
+            stroke={trailStroke(tw)}
+            strokeWidth={tw ? "0.42" : "0.3"}
+            strokeDasharray={tw ? "0.8,1.2" : "1,1"}
+            opacity={tw ? 0.88 : 0.6}
           />
         )}
+
+        {prints.map((pt, i) => (
+          <ellipse
+            key={i}
+            cx={pt.x}
+            cy={pt.y + 0.35}
+            rx={0.45}
+            ry={0.22}
+            fill={footprintFill()}
+            opacity={tw ? 0.08 + pt.fade * 0.35 : 0.12 + pt.fade * 0.22}
+            transform={`rotate(-12 ${pt.x} ${pt.y})`}
+          />
+        ))}
 
         {[25, 50, 75, 100].map((milestone) => {
           const pos = getPositionOnTrail(milestone);
           return (
-            <g key={milestone}>
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r="0.8"
-                fill="#FDFBF7"
-                opacity="0.4"
-              />
-            </g>
+            <circle
+              key={milestone}
+              cx={pos.x}
+              cy={pos.y}
+              r="0.8"
+              fill={milestoneFill(tw)}
+              opacity={tw ? 0.55 : 0.4}
+            />
           );
         })}
       </svg>
@@ -118,7 +176,7 @@ export function MountainSVG({
         style={{
           left: `${position.x}%`,
           top: `${position.y}%`,
-          transform: 'translate(-50%, -50%)',
+          transform: "translate(-50%, -50%)",
         }}
         initial={false}
         animate={{
@@ -132,8 +190,9 @@ export function MountainSVG({
       >
         <ClimberAvatar
           name={climberName}
-          size={48}
+          size={trailOnly ? 52 : 48}
           color={climberColor}
+          variant={trailOnly ? "pixelCat" : "initial"}
         />
       </motion.div>
     </div>

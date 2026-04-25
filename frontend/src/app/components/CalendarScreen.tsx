@@ -1,0 +1,179 @@
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import {
+  addDays,
+  format,
+  isSameDay,
+  startOfDay,
+  startOfWeek,
+} from 'date-fns';
+import {
+  coClimbingNames,
+  eventsForDay,
+  getCalendarFixture,
+  type CalendarEvent,
+} from '../../data/calendarFixtures';
+
+function formatRange(e: CalendarEvent) {
+  return `${format(e.start, 'h:mm a')} – ${format(e.end, 'h:mm a')}`;
+}
+
+export function CalendarScreen() {
+  const navigate = useNavigate();
+  const [selected, setSelected] = useState(() => startOfDay(new Date()));
+  const allEvents = useMemo(() => getCalendarFixture(selected), [selected]);
+
+  const weekStart = startOfWeek(startOfDay(selected), { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const dayEvents = eventsForDay(selected, allEvents);
+  const mine = dayEvents.filter((e) => e.ownerId === 'me');
+  const others = dayEvents.filter((e) => e.ownerId !== 'me');
+
+  return (
+    <div className="px-4 pb-6 pt-10 sm:px-6 lg:px-0 lg:pt-12">
+      <div className="mb-6 h-px w-16 rounded-full bg-mountain/25" aria-hidden />
+
+      <header className="mb-6">
+        <h1
+          className="mb-1 text-ink"
+          style={{ fontFamily: 'var(--font-serif)', fontSize: '32px' }}
+        >
+          Calendar
+        </h1>
+        <p className="text-warm-gray" style={{ fontSize: '13px' }}>
+          Overlapping blocks with friends count as a shared check-in — climb together, not
+          against a scoreboard.
+        </p>
+      </header>
+
+      <div className="mb-8 lg:grid lg:grid-cols-[minmax(0,280px)_1fr] lg:gap-10">
+        <div>
+          <p
+            className="mb-3 text-warm-gray lg:mb-4"
+            style={{ fontSize: '13px', fontWeight: 600 }}
+          >
+            This week
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-2 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0">
+            {weekDays.map((d) => {
+              const isSel = isSameDay(d, selected);
+              const count = eventsForDay(d, allEvents).length;
+              return (
+                <button
+                  key={d.toISOString()}
+                  type="button"
+                  onClick={() => setSelected(startOfDay(d))}
+                  className={`min-w-[4.5rem] shrink-0 rounded-2xl border px-3 py-3 text-left transition-colors lg:min-w-0 lg:px-4 ${
+                    isSel
+                      ? 'border-terracotta bg-card shadow-[var(--shadow-card)]'
+                      : 'border-border bg-card/60 hover:bg-card'
+                  }`}
+                >
+                  <div className="text-warm-gray" style={{ fontSize: '11px' }}>
+                    {format(d, 'EEE')}
+                  </div>
+                  <div className="text-ink" style={{ fontSize: '18px', fontWeight: 600 }}>
+                    {format(d, 'd')}
+                  </div>
+                  {count > 0 && (
+                    <div className="mt-1 text-moss" style={{ fontSize: '11px' }}>
+                      {count} block{count === 1 ? '' : 's'}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <h2
+            className="mb-4 text-ink"
+            style={{ fontFamily: 'var(--font-serif)', fontSize: '20px' }}
+          >
+            {format(selected, 'EEEE, MMMM d')}
+          </h2>
+
+          {mine.length === 0 && others.length === 0 ? (
+            <div
+              className="border border-border bg-card p-8 text-center"
+              style={{ borderRadius: '16px', boxShadow: 'var(--shadow-card)' }}
+            >
+              <p className="text-warm-gray" style={{ fontSize: '15px' }}>
+                Nothing scheduled this day. Add a block to start a climb.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {mine.map((event) => {
+                const peers = coClimbingNames(event, allEvents);
+                return (
+                  <div
+                    key={event.id}
+                    className="border border-border bg-card p-5 sm:p-6"
+                    style={{ borderRadius: '16px', boxShadow: 'var(--shadow-card)' }}
+                  >
+                    <h3 className="mb-1 text-ink" style={{ fontSize: '20px', fontWeight: 600 }}>
+                      {event.title}
+                    </h3>
+                    <p
+                      className="mb-3 text-warm-gray"
+                      style={{ fontFamily: 'var(--font-mono)', fontSize: '14px' }}
+                    >
+                      {formatRange(event)}
+                    </p>
+                    {peers.length > 0 && (
+                      <p
+                        className="mb-4 border-l-4 border-moss bg-mountain/5 py-2 pl-3 text-ink"
+                        style={{ fontSize: '13px' }}
+                      >
+                        Climbing with {peers.join(', ')} — overlapping time counts as a check-in
+                        together.
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/mountain/${event.id}`)}
+                      className="w-full bg-primary py-3 text-primary-foreground transition-opacity hover:opacity-90"
+                      style={{ borderRadius: '999px', fontWeight: 600 }}
+                    >
+                      Start studying
+                    </button>
+                  </div>
+                );
+              })}
+
+              {others.length > 0 && (
+                <div>
+                  <p className="mb-2 text-warm-gray" style={{ fontSize: '13px' }}>
+                    Friends on the mountain (same day)
+                  </p>
+                  <ul className="space-y-2">
+                    {others.map((event) => (
+                      <li
+                        key={event.id}
+                        className="flex flex-wrap items-baseline justify-between gap-2 border border-border bg-card/80 px-4 py-3"
+                        style={{ borderRadius: '12px' }}
+                      >
+                        <span className="font-semibold text-ink">{event.ownerName}</span>
+                        <span className="text-ink" style={{ fontSize: '15px' }}>
+                          {event.title}
+                        </span>
+                        <span
+                          className="w-full text-warm-gray sm:w-auto"
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: '13px' }}
+                        >
+                          {formatRange(event)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,47 +1,79 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Pause } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
+import { StudyAssistantPanel } from "./StudyAssistantPanel";
+import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 
-const eventData: Record<string, any> = {
+const eventData: Record<string, { name: string; duration: number }> = {
   '1': { name: "Deep Work: Design System", duration: 120 },
   '2': { name: "Team Standup", duration: 30 },
   '3': { name: "Focus Block: Code Review", duration: 120 },
-  'active': { name: "Focus Session", duration: 60 },
+  'me-1': { name: "Deep Work: Design System", duration: 120 },
+  'me-2': { name: "Team Standup", duration: 30 },
+  'me-3': { name: "Focus Block: Code Review", duration: 120 },
+  'me-4': { name: "Reading", duration: 90 },
+  active: { name: "Focus Session", duration: 60 },
 };
+
+function formatHMS(totalSeconds: number) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const event = eventData[eventId || 'active'];
+  const event = eventData[eventId ?? ""] ?? eventData.active;
 
-  const [elapsedMinutes, setElapsedMinutes] = useState(0);
-  const [progress, setProgress] = useState(20);
+  const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [focusScore, setFocusScore] = useState(97);
   const [lastCheck, setLastCheck] = useState<'verified' | 'distracted'>('verified');
   const [showToast, setShowToast] = useState(false);
   const [toastType, setToastType] = useState<'verified' | 'distracted'>('verified');
   const [distractedCount, setDistractionCount] = useState(0);
   const [showRoast, setShowRoast] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const summitSent = useRef(false);
+  const [artReady, setArtReady] = useState(false);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedMinutes((prev) => {
-        const next = prev + 1;
-        const newProgress = Math.min(100, (next / event.duration) * 100);
-        setProgress(newProgress);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
-        if (newProgress >= 100) {
-          navigate(`/summit/${eventId}`);
-        }
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setElapsedSeconds((prev) => (prev >= totalSeconds ? prev : prev + 1));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [totalSeconds]);
 
-        return next;
-      });
-    }, 60000);
+  useEffect(() => {
+    setProgress(Math.min(100, (elapsedSeconds / totalSeconds) * 100));
+  }, [elapsedSeconds, totalSeconds]);
 
-    const focusCheckInterval = setInterval(() => {
+  useEffect(() => {
+    if (
+      elapsedSeconds >= totalSeconds &&
+      totalSeconds > 0 &&
+      !summitSent.current
+    ) {
+      summitSent.current = true;
+      navigate(`/summit/${eventId ?? "me-1"}`);
+    }
+  }, [elapsedSeconds, totalSeconds, eventId, navigate]);
+
+  useEffect(() => {
+    const focusCheckInterval = window.setInterval(() => {
       const isDistracted = Math.random() < 0.15;
       const checkResult = isDistracted ? 'distracted' : 'verified';
 
@@ -63,80 +95,137 @@ export function MountainScreen() {
         setFocusScore((prev) => Math.min(100, prev + 1));
       }
 
-      setTimeout(() => setShowToast(false), 2500);
+      window.setTimeout(() => setShowToast(false), 2500);
     }, 10000);
 
-    return () => {
-      clearInterval(timer);
-      clearInterval(focusCheckInterval);
-    };
-  }, [event.duration, eventId, navigate]);
+    return () => window.clearInterval(focusCheckInterval);
+  }, []);
 
-  const formatTime = (minutes: number) => {
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    return hrs > 0 ? `${hrs}:${mins.toString().padStart(2, '0')}` : `${mins}m`;
-  };
+  const blockMinutes = Math.floor(elapsedSeconds / 60);
+  const blockLabel =
+    blockMinutes >= 60
+      ? `${Math.floor(blockMinutes / 60)}h ${blockMinutes % 60}m this block`
+      : `${blockMinutes}m this block`;
 
   return (
     <>
-      <div className="relative h-screen w-full overflow-hidden">
-        <div className="absolute inset-0">
-          <MountainSVG progress={progress} climberName="You" />
+      <div className="fixed inset-0 z-30 overflow-hidden bg-background-solid">
+        <img
+          src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
+          alt=""
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            artReady ? "opacity-100" : "opacity-0"
+          }`}
+          onLoad={() => setArtReady(true)}
+          decoding="async"
+        />
+
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background-solid/25 via-background-solid/40 to-background-solid/70"
+          aria-hidden
+        />
+
+        <div
+          className={`absolute inset-0 transition-opacity duration-500 ${
+            artReady ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <MountainSVG
+            progress={progress}
+            climberName="You"
+            climberColor="#c4b5e8"
+            trailOnly
+          />
         </div>
 
-        <div className="absolute top-0 left-0 right-0 p-6 z-10">
-          <div className="flex items-start justify-between">
-            <div>
+        <div className="absolute top-0 left-0 right-0 z-10 flex justify-center px-4 pt-4 sm:px-6">
+          <div className="flex w-full max-w-6xl items-start justify-between gap-3">
+            <div
+              className="min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-4"
+            >
+              <div
+                className="mb-1 text-foreground tabular-nums tracking-tight"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "clamp(2rem, 6vw, 2.75rem)",
+                  fontWeight: 600,
+                  lineHeight: 1.05,
+                }}
+              >
+                {formatHMS(elapsedSeconds)}
+              </div>
               <h2
-                className="text-ink mb-1"
-                style={{ fontFamily: 'var(--font-serif)', fontSize: '20px' }}
+                className="mb-3 truncate text-foreground"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "20px",
+                  fontWeight: 400,
+                }}
               >
                 {event.name}
               </h2>
               <div
-                className="text-ink"
-                style={{ fontFamily: 'var(--font-mono)', fontSize: '28px', fontWeight: 600 }}
+                className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-2 text-muted"
+                style={{
+                  fontSize: "13px",
+                  fontFamily: "var(--font-mono)",
+                }}
               >
-                {formatTime(elapsedMinutes)}
+                <span>Today&apos;s focus (demo): 3h 24m</span>
+                <span className="text-foreground/90">{blockLabel}</span>
               </div>
             </div>
-            <button className="p-2 text-ink opacity-60 hover:opacity-100 transition-opacity">
-              <Pause className="w-6 h-6" />
-            </button>
+            <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                className="flex items-center justify-center rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
+                aria-label="Pause session"
+              >
+                <Pause className="h-5 w-5" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssistantOpen(true)}
+                className="rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-90"
+                style={{ fontSize: "13px", fontWeight: 600 }}
+              >
+                Ask
+              </button>
+            </div>
           </div>
         </div>
 
-        <div
-          className="absolute bottom-24 left-4 right-4 bg-card p-4 border border-border z-10"
-          style={{ borderRadius: '12px', boxShadow: 'var(--shadow-card)' }}
-        >
+        <div className="absolute bottom-24 left-4 right-4 z-10 mx-auto max-w-6xl rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md sm:left-6 sm:right-6">
           <div className="flex items-center gap-4">
             <div
-              className="bg-warm-gray flex items-center justify-center text-[10px] text-snow"
-              style={{ width: 80, height: 60, borderRadius: '8px' }}
+              className="flex shrink-0 items-center justify-center rounded-lg bg-mountain/50 text-[10px] text-foreground"
+              style={{ width: 80, height: 60 }}
             >
               <div className="text-center">
-                <div className="w-2 h-2 bg-moss rounded-full mx-auto mb-1 animate-pulse"></div>
+                <div className="mx-auto mb-1 h-2 w-2 animate-pulse rounded-full bg-primary" />
                 LIVE
               </div>
             </div>
 
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div
-                className="text-ink mb-1"
-                style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', fontWeight: 600 }}
+                className="mb-1 text-foreground tabular-nums"
+                style={{
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "24px",
+                  fontWeight: 600,
+                }}
               >
-                {focusScore}%
+                {focusScore}% focused
               </div>
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    lastCheck === 'verified' ? 'bg-moss' : 'bg-coral'
+                  className={`h-2 w-2 shrink-0 rounded-full ${
+                    lastCheck === "verified" ? "bg-moss" : "bg-coral"
                   }`}
-                ></div>
-                <span className="text-warm-gray" style={{ fontSize: '13px' }}>
-                  {lastCheck === 'verified' ? 'focused' : 'distracted'}
+                />
+                <span className="text-muted" style={{ fontSize: "13px" }}>
+                  {lastCheck === "verified" ? "focused" : "distracted"}
                 </span>
               </div>
             </div>
@@ -145,6 +234,10 @@ export function MountainScreen() {
 
         {showToast && <FocusCheckToast type={toastType} />}
       </div>
+
+      {assistantOpen && (
+        <StudyAssistantPanel onClose={() => setAssistantOpen(false)} />
+      )}
 
       {showRoast && <RoastModal onClose={() => setShowRoast(false)} />}
     </>

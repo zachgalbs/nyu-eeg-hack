@@ -39,15 +39,15 @@ export function RoastModal({ onClose }: RoastModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-6"
       style={{
-        background: '#2B2028',
+        background: '#1c2229',
         backgroundImage: 'url("data:image/svg+xml,%3Csvg width="100" height="100" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noise"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.9" /%3E%3C/filter%3E%3Crect width="100" height="100" filter="url(%23noise)" opacity="0.05" /%3E%3C/svg%3E")',
       }}
     >
-      <div className="max-w-[380px] w-full text-center">
+      <div className="relative z-10 max-w-[380px] w-full text-center">
         {isPlaying && (
-          <div className="absolute top-8 right-8">
+          <div className="absolute top-0 right-0 sm:top-2 sm:right-2">
             <Volume2 className="w-5 h-5 text-snow opacity-40 animate-pulse" />
           </div>
         )}
@@ -87,7 +87,7 @@ export function RoastModal({ onClose }: RoastModalProps) {
         <div className="space-y-3">
           <button
             onClick={onClose}
-            className="w-full py-3 px-6 bg-terracotta text-snow transition-opacity hover:opacity-90"
+            className="w-full py-3 px-6 bg-primary text-primary-foreground transition-opacity hover:opacity-90"
             style={{ borderRadius: '999px', fontWeight: 600 }}
           >
             lock back in

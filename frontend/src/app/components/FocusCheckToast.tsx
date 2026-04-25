@@ -19,7 +19,7 @@ export function FocusCheckToast({ type }: FocusCheckToastProps) {
       }`}
       style={{ boxShadow: 'var(--shadow-card)' }}
     >
-      <div className="flex items-center gap-2 text-snow">
+      <div className="flex items-center gap-2 text-primary-foreground">
         {isVerified ? (
           <Check className="w-4 h-4" strokeWidth={2.5} />
         ) : (

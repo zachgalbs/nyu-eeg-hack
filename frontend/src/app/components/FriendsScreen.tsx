@@ -81,7 +81,10 @@ export function FriendsScreen() {
         className="bg-card p-6 mb-6 border border-border"
         style={{ borderRadius: '16px', boxShadow: 'var(--shadow-card)' }}
       >
-        <div className="flex items-end justify-around gap-4 mb-4">
+        <p className="text-warm-gray mb-4" style={{ fontSize: '13px' }}>
+          At a glance — who&apos;s on the trail right now
+        </p>
+        <div className="flex items-end justify-around gap-4 mb-2">
           {topThree.map((friend) => (
             <div key={friend.id} className="flex flex-col items-center gap-2">
               <MiniMountain progress={friend.altitude} />
@@ -93,15 +96,16 @@ export function FriendsScreen() {
         </div>
       </div>
 
-      <div className="flex gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6">
         {(['today', 'week', 'month'] as TimeFilter[]).map((filter) => (
           <button
             key={filter}
+            type="button"
             onClick={() => setTimeFilter(filter)}
-            className={`px-4 py-2 transition-colors ${
+            className={`px-4 py-2 border transition-colors ${
               timeFilter === filter
-                ? 'bg-terracotta text-snow'
-                : 'bg-card text-warm-gray border border-border'
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-card text-warm-gray'
             }`}
             style={{ borderRadius: '999px', fontSize: '14px', fontWeight: 600 }}
           >
@@ -115,7 +119,7 @@ export function FriendsScreen() {
           <div
             key={friend.id}
             className={`p-4 border ${
-              friend.isUser ? 'bg-[#FBF2E4] border-l-4 border-l-terracotta' : 'bg-card'
+              friend.isUser ? 'border-l-4 border-l-terracotta bg-background-solid' : 'bg-card'
             } border-border`}
             style={{ borderRadius: '16px' }}
           >
