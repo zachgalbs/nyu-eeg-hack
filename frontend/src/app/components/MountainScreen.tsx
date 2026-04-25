@@ -517,6 +517,13 @@ export function MountainScreen() {
     <>
       <video ref={videoRef} className="hidden" muted playsInline />
       <canvas ref={canvasRef} className="hidden" />
+      <video
+        ref={snowballVideoRef}
+        className={`pointer-events-none fixed inset-0 z-[60] h-full w-full object-cover transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
+        muted
+        playsInline
+        onEnded={() => setSnowballMode(null)}
+      />
       <div className={`fixed inset-0 z-30 overflow-y-auto bg-background-solid ${!uiVisible ? "cursor-none" : ""}`}>
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
@@ -738,13 +745,6 @@ export function MountainScreen() {
                 isPaused={!hasCheckedIn || isPaused}
                 friendClimbers={friendClimbers}
                 throwProjectile={projectile}
-              />
-              <video
-                ref={snowballVideoRef}
-                className={`pointer-events-none absolute inset-0 h-full w-full object-contain transition-opacity duration-150 ${snowballMode ? "opacity-100" : "opacity-0"}`}
-                muted
-                playsInline
-                onEnded={() => setSnowballMode(null)}
               />
             </div>
           </div>
