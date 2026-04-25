@@ -3,3 +3,10 @@
 .env*.local
 node_modules/
 frontend/dist/
+
+# Backend
+backend/.venv/
+backend/__pycache__/
+*.pyc
+*.task
+*.tflite

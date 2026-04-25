@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ClimberAvatar } from "./ClimberAvatar";
+import { PixelCat } from "./PixelCat";
 import { MiniMountain } from "./MiniMountain";
 import { getSessionOutcomes } from "../../lib/compcal-state";
 import { getSortedFriendPresence } from "../../lib/friends-presence";
@@ -79,11 +79,9 @@ export function FriendsScreen() {
             style={{ borderRadius: '16px' }}
           >
             <div className="flex items-center gap-3">
-              <ClimberAvatar
-                name={friend.name}
-                size={40}
-                color={friend.isUser ? '#C66B52' : '#D99A8F'}
-                isActive={friend.status === 'climbing'}
+              <PixelCat
+                size={36}
+                isWalking={friend.status === 'climbing'}
               />
 
               <div className="flex-1 min-w-0">
