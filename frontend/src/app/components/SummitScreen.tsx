@@ -1,38 +1,29 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { motion } from "motion/react";
 import { CheckCircle2 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import { getLatestSessionOutcome } from "../../lib/compcal-state";
 
-const eventData: Record<string, { name: string; duration: number }> = {
-  '1': { name: "Deep Work: Design System", duration: 120 },
-  '2': { name: "Team Standup", duration: 30 },
-  '3': { name: "Focus Block: Code Review", duration: 120 },
-  'me-1': { name: "Deep Work: Design System", duration: 120 },
-  'me-2': { name: "Team Standup", duration: 30 },
-  'me-3': { name: "Focus Block: Code Review", duration: 120 },
-  'me-4': { name: "Reading", duration: 90 },
-  active: { name: "Focus Session", duration: 60 },
-};
-
 export function SummitScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
-  const event = eventData[eventId ?? ""] ?? eventData["1"];
+  const location = useLocation();
+  const state = location.state as { title?: string; duration?: number } | null;
 
   const [showMountain, setShowMountain] = useState(false);
   const [showText, setShowText] = useState(false);
   const [showScore, setShowScore] = useState(false);
 
   const sessionOutcome = getLatestSessionOutcome(eventId);
-  const focusedTime = event?.duration || 120;
-  const focusScore = sessionOutcome?.focusScore ?? 94;
-  const plannedMinutes = sessionOutcome?.plannedMinutes ?? focusedTime;
-  const completedMinutes = sessionOutcome?.completedMinutes ?? focusedTime;
+  const eventName = state?.title ?? sessionOutcome?.eventTitle ?? "Focus Session";
+  const eventDuration = state?.duration ?? sessionOutcome?.plannedMinutes ?? 60;
+  const focusScore = sessionOutcome?.focusScore ?? 0;
+  const plannedMinutes = sessionOutcome?.plannedMinutes ?? eventDuration;
+  const completedMinutes = sessionOutcome?.completedMinutes ?? 0;
   const distractedChecks = sessionOutcome?.distractedChecks ?? 0;
-  const keptCommitment = sessionOutcome?.keptCommitment ?? true;
+  const keptCommitment = sessionOutcome?.keptCommitment ?? false;
 
   useEffect(() => {
     setTimeout(() => setShowMountain(true), 100);
@@ -96,7 +87,7 @@ export function SummitScreen() {
               fontWeight: 400,
             }}
           >
-            {event?.name || "Focus Session"}
+            {eventName}
           </h2>
 
           <div className="space-y-2">
