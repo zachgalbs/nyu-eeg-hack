@@ -30,14 +30,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const parsed = match ? parseFloat(match[1]) : NaN
     const score = isNaN(parsed) ? 0 : Math.max(0, Math.min(1, parsed))
     const distracted = score > 0.5
+
+    const usage = result.response.usageMetadata
+    const candidates = result.response.candidates ?? []
+    const finishReason = candidates[0]?.finishReason ?? null
+    const safetyRatings = candidates[0]?.safetyRatings ?? []
+
     console.log('[check-focus]', JSON.stringify({
       eventName: eventName ?? null,
       imageBytes: imageBase64.length,
       rawGemini: raw,
       parsedScore: score,
       distracted,
+      promptTokens: usage?.promptTokenCount,
+      outputTokens: usage?.candidatesTokenCount,
+      finishReason,
     }))
-    return res.json({ score, raw, distracted })
+
+    const verbose = req.query.verbose === '1'
+    return res.json({
+      score,
+      raw,
+      distracted,
+      ...(verbose && {
+        _geminiMeta: {
+          model: 'gemini-2.5-flash',
+          promptTokenCount: usage?.promptTokenCount,
+          candidatesTokenCount: usage?.candidatesTokenCount,
+          totalTokenCount: usage?.totalTokenCount,
+          finishReason,
+          safetyRatings: safetyRatings.map((r: { category: string; probability: string }) => ({
+            category: r.category,
+            probability: r.probability,
+          })),
+        },
+      }),
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     const name = err instanceof Error ? err.name : 'Error'
