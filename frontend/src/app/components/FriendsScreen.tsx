@@ -173,7 +173,7 @@ export function FriendsScreen() {
           style={{ borderRadius: '16px', boxShadow: 'var(--shadow-card)' }}
         >
           <p className="text-warm-gray mb-4" style={{ fontSize: '13px' }}>
-            At a glance — who&apos;s on the trail right now
+            friends&apos; progress
           </p>
           <div className="flex items-end justify-around gap-4 mb-2">
             {topThree.map((friend) => (
