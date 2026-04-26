@@ -10,7 +10,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!imageBase64) return res.status(400).json({ error: 'Missing imageBase64' })
 
   const task = eventName ? `"${eventName}"` : 'their current task'
-  const prompt = `Is this person focused on ${task}? Look at their face and body language. Are they looking at their screen and engaged, or are they looking away, on their phone, or clearly distracted? Reply with only a number from 0 to 1. 0 = focused on ${task}, 1 = clearly distracted.`
+  const prompt = `You are a focus detector for a webcam-based study app. The camera faces the person — their screen is behind the camera, so it will not be visible. Judge only by gaze direction and attention cues.
+
+Score 0 (focused): eyes directed at the camera lens (meaning they are looking at their screen), sitting still, neutral or engaged expression.
+Score 1 (distracted): eyes clearly looking away to the side, down at a phone, closed, or the person has left the frame entirely.
+
+Task context: the person is supposed to be working on ${task}.
+
+Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.8, 1`
 
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
