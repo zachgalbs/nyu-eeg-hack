@@ -63,7 +63,7 @@ export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const navState = (location.state ?? null) as { title?: string; duration?: number } | null;
+  const navState = (location.state ?? null) as { title?: string; duration?: number; playMeetUp?: boolean } | null;
   const eventKey = eventId ?? "active";
   const fallbackEvent = eventData[eventKey] ?? eventData.active;
   const event = {
@@ -101,6 +101,8 @@ export function MountainScreen() {
   const [projectile, setProjectile] = useState<{ fromProgress: number; toProgress: number; active: boolean } | null>(null);
   const [snowballMode, setSnowballMode] = useState<'throw' | 'hit' | null>(null);
   const snowballVideoRef = useRef<HTMLVideoElement>(null);
+  const [meetUpActive, setMeetUpActive] = useState<boolean>(() => Boolean(navState?.playMeetUp));
+  const meetUpVideoRef = useRef<HTMLVideoElement>(null);
   const [realFriends, setRealFriends] = useState<FriendPresence[]>([]);
   const localUserId = useMemo(() => getUserIdFromCookie() || getTabIdentity(), []);
 
@@ -149,6 +151,15 @@ export function MountainScreen() {
     v.load();
     v.play().catch(() => {});
   }, [snowballMode]);
+
+  useEffect(() => {
+    if (!meetUpActive) return;
+    const v = meetUpVideoRef.current;
+    if (!v) return;
+    v.currentTime = 0;
+    v.load();
+    v.play().catch(() => setMeetUpActive(false));
+  }, [meetUpActive]);
 
   useEffect(() => {
     let cancelled = false;
@@ -295,6 +306,7 @@ export function MountainScreen() {
 
   // Auto-hide UI after 4s of inactivity (only during active session)
   useEffect(() => {
+    if (meetUpActive) return; // overlay effect owns uiVisible while the video plays
     if (!hasCheckedIn || isPaused) {
       setUiVisible(true);
       return;
@@ -311,16 +323,16 @@ export function MountainScreen() {
       events.forEach((e) => document.removeEventListener(e, resetTimer));
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     };
-  }, [hasCheckedIn, isPaused]);
+  }, [hasCheckedIn, isPaused, meetUpActive]);
 
   // Hide the UI immediately when an overlay animation (snowball / break transitions) plays
   useEffect(() => {
-    const animationActive = snowballMode !== null || bgMode === 'going_to_break' || bgMode === 'going_from_break';
+    const animationActive = snowballMode !== null || bgMode === 'going_to_break' || bgMode === 'going_from_break' || meetUpActive;
     if (animationActive) {
       setUiVisible(false);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     }
-  }, [snowballMode, bgMode]);
+  }, [snowballMode, bgMode, meetUpActive]);
 
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
@@ -576,6 +588,26 @@ export function MountainScreen() {
         playsInline
         onEnded={() => setSnowballMode(null)}
       />
+      {meetUpActive && (
+        <div className="fixed inset-0 z-[65] bg-black">
+          <video
+            ref={meetUpVideoRef}
+            src="/media/meeting_with_friends.mp4"
+            className="absolute inset-0 h-full w-full object-cover"
+            playsInline
+            autoPlay
+            onEnded={() => setMeetUpActive(false)}
+            onError={() => setMeetUpActive(false)}
+          />
+          <button
+            type="button"
+            onClick={() => setMeetUpActive(false)}
+            className="absolute right-4 top-4 rounded-full bg-white/15 px-3 py-1 text-xs text-white backdrop-blur hover:bg-white/25"
+          >
+            Skip
+          </button>
+        </div>
+      )}
       <div className={`fixed inset-0 z-30 overflow-y-auto bg-background-solid ${!uiVisible ? "cursor-none" : ""}`}>
         <img
           src={SNOW_MOUNTAIN_RETRO_THEME_SRC}
@@ -606,8 +638,8 @@ export function MountainScreen() {
           aria-hidden
         />
 
-        <div className={`relative z-10 min-h-full px-4 pb-20 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-          <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-3">
+        <div className={`relative z-10 min-h-full px-4 pb-28 pt-4 sm:px-6 sm:pt-5 transition-opacity duration-700 ${uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
             <div
               className={`min-w-0 flex-1 rounded-2xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-card)] backdrop-blur-md sm:px-5 sm:py-3 ${isPaused ? "opacity-90" : ""}`}
@@ -776,11 +808,12 @@ export function MountainScreen() {
               </div>
             </div>
           </div>
-          <div className="mt-auto w-full">
-            <div className="flex items-end gap-3">
-              <div className="w-full max-w-[360px] shrink-0">
+          <div className="fixed inset-x-0 bottom-24 z-20 px-4 sm:px-6">
+            <div className="mx-auto w-full max-w-6xl">
+            <div className="flex items-stretch rounded-2xl border border-border bg-card shadow-[var(--shadow-card)] backdrop-blur-md">
+              <div className="min-w-0 flex-1 p-4">
 
-                <div className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-card)] backdrop-blur-md">
+                <div>
                   <div className="flex items-center gap-4">
                     <div
                       className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mountain/50 text-[10px] text-foreground"
@@ -851,26 +884,29 @@ export function MountainScreen() {
                   </div>
                 </div>
               </div>
-              <div
-                className={`relative ml-auto shrink-0 overflow-hidden rounded-2xl border-2 border-border/40 transition-opacity duration-500 ${
-                  artReady ? "opacity-100" : "opacity-0"
-                }`}
-                style={{
-                  width: 200,
-                  height: 140,
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
-                }}
-              >
-                <MountainSVG
-                  progress={progress}
-                  climberName="You"
-                  climberColor="#c4b5e8"
-                  trailOnly
-                  isPaused={!hasCheckedIn || isPaused}
-                  friendClimbers={friendClimbers}
-                  throwProjectile={projectile}
-                />
+              <div className="flex shrink-0 items-end p-3">
+                <div
+                  className={`relative overflow-hidden rounded-xl border-2 border-border/40 transition-opacity duration-500 ${
+                    artReady ? "opacity-100" : "opacity-0"
+                  }`}
+                  style={{
+                    width: 200,
+                    height: 140,
+                    boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                  }}
+                >
+                  <MountainSVG
+                    progress={progress}
+                    climberName="You"
+                    climberColor="#c4b5e8"
+                    trailOnly
+                    isPaused={!hasCheckedIn || isPaused}
+                    friendClimbers={friendClimbers}
+                    throwProjectile={projectile}
+                  />
+                </div>
               </div>
+            </div>
             </div>
           </div>
         </div>

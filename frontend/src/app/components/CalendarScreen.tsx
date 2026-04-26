@@ -19,6 +19,12 @@ export function CalendarScreen() {
   const today = useMemo(() => startOfDay(new Date()), []);
   const token = getGoogleToken();
 
+  const startSession = (event: CalendarEvent) => {
+    navigate(`/mountain/${event.id}`, {
+      state: { title: event.title, duration: durationMinutes(event), playMeetUp: true },
+    });
+  };
+
   const [myEvents, setMyEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(!!token);
   const [authError, setAuthError] = useState(false);
@@ -63,9 +69,7 @@ export function CalendarScreen() {
         createdAt: new Date().toISOString(),
       });
     }
-    navigate(`/mountain/${event.id}`, {
-      state: { title: event.title, duration: durationMinutes(event) },
-    });
+    startSession(event);
   };
 
   const authBanner = !token ? (
@@ -208,11 +212,7 @@ export function CalendarScreen() {
                 <div className={`grid gap-2 ${buddyOptions.length > 0 ? 'sm:grid-cols-2' : ''}`}>
                   <button
                     type="button"
-                    onClick={() =>
-                      navigate(`/mountain/${event.id}`, {
-                        state: { title: event.title, duration: durationMinutes(event) },
-                      })
-                    }
+                    onClick={() => startSession(event)}
                     className={`w-full py-3 transition-opacity hover:opacity-90 ${
                       buddyOptions.length > 0
                         ? 'border border-border bg-card text-foreground'
