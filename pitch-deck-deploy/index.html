@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CompCal — Pitch Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --sky-top: #2a3d47;
+      --sky-bottom: #1a242c;
+      --mountain: #4a5568;
+      --snow: #eef1f5;
+      --terracotta: #c4b5e8;
+      --dusty-rose: #6db3a8;
+      --ink: #e8ecf2;
+      --warm-gray: #9aa8b4;
+      --moss: #6bc49a;
+      --coral: #e8a0b8;
+      --bg: #222c35;
+      --card: rgba(34, 44, 56, 0.88);
+      --border: rgba(232, 236, 242, 0.14);
+      --shadow: 0 4px 20px rgba(0,0,0,0.45), 0 12px 40px rgba(0,0,0,0.25);
+      --serif: 'Instrument Serif', serif;
+      --sans: 'Inter', -apple-system, system-ui, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+      --pixel: 'Silkscreen', system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    @page { size: 1440px 900px; margin: 0; }
+    html, body { font-family: var(--sans); background: #0e151b; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; overflow: hidden; height: 100%; }
+    .slide { position: absolute; inset: 0; width: 1440px; height: 900px; overflow: hidden; page-break-after: always; display: none; }
+    .slide.active { display: block; }
+    #deck { position: relative; width: 1440px; height: 900px; transform-origin: top left; }
+    .nav-arrow { position: fixed; top: 0; bottom: 0; width: 15%; z-index: 100; cursor: pointer; background: transparent; border: none; outline: none; display: flex; align-items: center; opacity: 0; transition: opacity 0.2s; }
+    .nav-arrow:hover { opacity: 1; }
+    .nav-arrow--left { left: 0; justify-content: flex-start; padding-left: 24px; }
+    .nav-arrow--right { right: 0; justify-content: flex-end; padding-right: 24px; }
+    .nav-arrow svg { width: 36px; height: 36px; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+    #counter { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; font-family: var(--sans); font-size: 14px; color: rgba(154,168,180,0.45); pointer-events: none; }
+    .bg { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(36,55,72,0.96) 0%, rgba(26,36,44,0.98) 100%); }
+    .bg-alt { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(30,45,58,0.98) 0%, rgba(20,30,40,0.99) 100%); }
+    .inner { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; padding: 60px 88px; }
+    .mtn { position: absolute; bottom: 0; right: 0; opacity: 0.07; pointer-events: none; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 40px; }
+    .brand-dot { width: 8px; height: 8px; border-radius: 2px; background: var(--terracotta); }
+    .brand span { font-family: var(--pixel); font-size: 14px; color: var(--terracotta); letter-spacing: 0.06em; }
+    .label { font-family: var(--sans); font-size: 14px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--terracotta); margin-bottom: 12px; }
+    h1 { font-family: var(--serif); font-weight: 400; color: var(--ink); line-height: 1.1; }
+    h2 { font-family: var(--sans); font-size: 20px; font-weight: 600; color: var(--ink); }
+    p, li { font-family: var(--sans); font-size: 18px; line-height: 1.6; color: var(--warm-gray); }
+    .sub { font-size: 22px; color: var(--warm-gray); max-width: 640px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 32px; box-shadow: var(--shadow); }
+    .pill { display: inline-flex; align-items: center; padding: 6px 16px; border-radius: 999px; border: 1px solid var(--border); background: rgba(34,44,56,0.75); font-size: 14px; font-weight: 600; color: var(--warm-gray); }
+    .pill-purple { background: rgba(196,181,232,0.15); border-color: rgba(196,181,232,0.3); color: var(--terracotta); }
+    .pill-green { background: rgba(107,196,154,0.12); border-color: rgba(107,196,154,0.25); color: var(--moss); }
+    .pill-teal { background: rgba(109,179,168,0.12); border-color: rgba(109,179,168,0.25); color: var(--dusty-rose); }
+    .stat { font-family: var(--mono); font-weight: 600; color: var(--terracotta); line-height: 1; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--terracotta); text-align: center; padding: 0 0 14px; border-bottom: 1px solid var(--border); }
+    th:first-child { text-align: left; }
+    td { text-align: center; padding: 14px 12px; border-bottom: 1px solid rgba(232,236,242,0.06); color: var(--warm-gray); font-size: 16px; }
+    td:first-child { text-align: left; color: var(--ink); font-weight: 600; }
+    .hl td { background: rgba(196,181,232,0.06); color: var(--terracotta); }
+    .hl td:first-child { color: var(--terracotta); }
+    .ck { color: var(--moss); font-size: 18px; }
+    .no { color: rgba(154,168,180,0.35); font-size: 18px; }
+    .divider { width: 48px; height: 2px; background: var(--terracotta); border-radius: 2px; opacity: 0.5; }
+    .fund-bar { display: flex; height: 14px; border-radius: 8px; overflow: hidden; gap: 2px; }
+    .fund-bar > div { height: 100%; border-radius: 4px; }
+    .phase { flex: 1; padding: 24px 20px; border-radius: 14px; border: 1px solid var(--border); background: rgba(34,44,56,0.72); }
+    .phase + .phase { margin-left: 12px; }
+    .phase h3 { font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 14px; }
+    .phase ul { list-style: none; }
+    .phase li { font-size: 15px; color: var(--warm-gray); padding: 5px 0; border-bottom: 1px solid rgba(232,236,242,0.05); line-height: 1.5; }
+    .phase li:last-child { border-bottom: none; }
+    .num { position: absolute; bottom: 28px; right: 48px; font-family: var(--sans); font-size: 13px; color: rgba(154,168,180,0.3); letter-spacing: 0.06em; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+    .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .flex { display: flex; }
+    .col { flex-direction: column; }
+    .center { align-items: center; }
+    .between { justify-content: space-between; }
+    .wrap { flex-wrap: wrap; }
+    .grow { flex: 1; }
+
+    /* SVG icon containers */
+    .icon { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+    .icon svg { width: 24px; height: 24px; }
+    .icon-sm { width: 36px; height: 36px; border-radius: 8px; }
+    .icon-sm svg { width: 20px; height: 20px; }
+    .icon-lg { width: 56px; height: 56px; border-radius: 12px; }
+    .icon-lg svg { width: 28px; height: 28px; }
+
+    /* Flow node */
+    .flow-node { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .flow-node .icon-lg { margin-bottom: 12px; }
+    .flow-connector { display: flex; align-items: center; padding: 0 4px; }
+    .flow-connector svg { width: 32px; height: 32px; }
+
+    @media print {
+      body { background: #0e151b; overflow: visible; height: auto; }
+      #deck { transform: none !important; margin: 0 !important; }
+      .slide { display: block !important; position: relative !important; page-break-after: always; page-break-inside: avoid; }
+      .nav-arrow, #counter { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="nav-arrow nav-arrow--left" id="prevBtn" aria-label="Previous slide">
+  <svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<button class="nav-arrow nav-arrow--right" id="nextBtn" aria-label="Next slide">
+  <svg viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+</button>
+<div id="counter"></div>
+
+<div id="deck">
+
+<!-- ══════════ SLIDE 1 — COVER ══════════ -->
+<div class="slide active">
+  <div class="bg"></div>
+  <svg class="mtn" width="820" height="560" viewBox="0 0 100 70" preserveAspectRatio="xMaxYMax meet">
+    <path d="M 0 70 Q 18 42 32 38 L 38 28 Q 46 16 54 8 L 62 -2 Q 66 -10 70 -12 L 74 -8 Q 78 0 82 6 L 88 18 Q 94 32 100 42 L 100 70 Z" fill="#2B4353" opacity="0.9"/>
+    <path d="M 62 -2 Q 66 -10 70 -12 L 74 -8 Q 76 -6 77 -4 L 72 2 L 64 4 Z" fill="#E7EEF4" opacity="0.7"/>
+    <path d="M 52 8 Q 58 2 64 4 L 68 10 Q 62 18 56 22 Q 54 16 52 8 Z" fill="#D9E4ED" opacity="0.5"/>
+    <!-- trail -->
+    <path d="M 48 62 L 46 54 L 50 46 L 48 38 L 52 28 L 54 18 L 58 8 L 62 -2" fill="none" stroke="#D9E4ED" stroke-width="0.35" stroke-dasharray="1.2 1.4" opacity="0.4"/>
+    <!-- climber dot -->
+    <circle cx="52" cy="28" r="1.2" fill="var(--terracotta)" opacity="0.8"/>
+    <circle cx="50" cy="46" r="1" fill="var(--moss)" opacity="0.7"/>
+    <circle cx="48" cy="38" r="1" fill="var(--dusty-rose)" opacity="0.7"/>
+  </svg>
+
+  <div class="inner" style="justify-content: space-between;">
+    <div class="flex center" style="gap: 10px;">
+      <div class="brand-dot"></div>
+      <span style="font-family: var(--sans); font-size: 14px; font-weight: 600; color: rgba(196,181,232,0.5); letter-spacing: 0.08em; text-transform: uppercase;">NYU EEG &times; Vercel Hackathon</span>
+    </div>
+
+    <div style="max-width: 780px;">
+      <div style="font-family: var(--pixel); font-size: 16px; color: var(--terracotta); letter-spacing: 0.12em; margin-bottom: 24px;">CompCal</div>
+      <h1 style="font-size: 84px; margin-bottom: 28px;">Turn your calendar<br/>into a mountain<br/>your friends can see.</h1>
+      <p class="sub" style="margin-bottom: 36px;">
+        The first calendar-native accountability app that verifies focus in real time — with friends watching your climb.
+      </p>
+      <div class="flex wrap" style="gap: 10px;">
+        <span class="pill pill-purple">Educational &amp; Social Good</span>
+        <span class="pill pill-green">React + Vercel + Claude Vision</span>
+        <span class="pill">April 2026</span>
+      </div>
+    </div>
+
+    <div>
+      <p style="font-size: 15px; color: var(--warm-gray);">Candy Xie &nbsp;&middot;&nbsp; Travis Sim &nbsp;&middot;&nbsp; Andy Li &nbsp;&middot;&nbsp; Zachary Galbraith</p>
+    </div>
+  </div>
+  <div class="num">01 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 2 — THE PROBLEM ══════════ -->
+<div class="slide">
+  <div class="bg-alt"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">The Problem</div>
+    <h1 style="font-size: 54px; margin-bottom: 12px;">Productivity tools rely on self-report.<br/><span style="color: var(--terracotta);">Self-report is broken.</span></h1>
+    <div class="divider" style="margin: 20px 0 32px;"></div>
+    <div class="grid-2" style="gap: 32px; flex: 1;">
+      <div>
+        <div class="grid-2" style="gap: 20px;">
+          <div class="card">
+            <div class="stat" style="font-size: 48px; margin-bottom: 8px;">47%</div>
+            <p style="font-size: 16px;">of college students cite procrastination as their top academic problem</p>
+          </div>
+          <div class="card">
+            <div class="stat" style="font-size: 48px; margin-bottom: 8px;">74%</div>
+            <p style="font-size: 16px;">say peer accountability beats self-discipline — yet no app delivers it</p>
+          </div>
+          <div class="card">
+            <div class="stat" style="font-size: 48px; margin-bottom: 8px;">$13B</div>
+            <p style="font-size: 16px;">productivity app market in 2025, growing to $30.85B by 2034</p>
+          </div>
+          <div class="card">
+            <div class="stat" style="font-size: 48px; margin-bottom: 8px;">800M+</div>
+            <p style="font-size: 16px;">weekly AI users — none verify actual focus</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex col" style="gap: 24px;">
+        <div class="card" style="border-left: 3px solid rgba(196,181,232,0.4); padding-left: 28px;">
+          <p style="font-family: var(--serif); font-size: 22px; font-style: italic; color: var(--warm-gray); line-height: 1.5;">
+            "I told my study buddy I locked in for 3 hours. I had Instagram open the whole time. Nothing stopped me."
+          </p>
+          <p style="font-size: 15px; color: rgba(154,168,180,0.5); margin-top: 12px;">— every college student ever</p>
+        </div>
+        <div class="card" style="flex: 1;">
+          <h2 style="margin-bottom: 18px;">Why every tool fails</h2>
+          <div class="flex col" style="gap: 16px;">
+            <div class="flex center" style="gap: 14px;">
+              <div class="icon icon-sm" style="background: rgba(232,160,184,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><path d="M12 22c5-3 8-7 8-12a8 8 0 0 0-16 0c0 5 3 9 8 12Z"/><line x1="8" y1="11" x2="16" y2="11"/></svg></div>
+              <div>
+                <p style="font-size: 17px; font-weight: 600; color: var(--ink);">Forest / Focusmate</p>
+                <p style="font-size: 15px;">Locks your phone but trusts your word.</p>
+              </div>
+            </div>
+            <div class="flex center" style="gap: 14px;">
+              <div class="icon icon-sm" style="background: rgba(232,160,184,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <div>
+                <p style="font-size: 17px; font-weight: 600; color: var(--ink);">Habitica / Toggl</p>
+                <p style="font-size: 15px;">Gamifies habits but can't verify them.</p>
+              </div>
+            </div>
+            <div class="flex center" style="gap: 14px;">
+              <div class="icon icon-sm" style="background: rgba(232,160,184,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+              <div>
+                <p style="font-size: 17px; font-weight: 600; color: var(--ink);">ChatGPT / Notion AI</p>
+                <p style="font-size: 15px;">Helps plan but has zero accountability.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">02 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 3 — THE SOLUTION (Visual Flow) ══════════ -->
+<div class="slide">
+  <div class="bg"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">The Solution</div>
+    <h1 style="font-size: 54px; margin-bottom: 10px;">Plan it. <span style="color: var(--terracotta);">Climb it.</span> Prove it.</h1>
+    <p class="sub" style="margin-bottom: 36px;">A calendar-first accountability loop that makes follow-through visible.</p>
+
+    <!-- SVG Flow Diagram -->
+    <div class="flex center" style="margin-bottom: 36px;">
+      <svg width="1264" height="140" viewBox="0 0 1264 140">
+        <!-- Connecting lines -->
+        <line x1="140" y1="70" x2="225" y2="70" stroke="var(--terracotta)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+        <line x1="365" y1="70" x2="450" y2="70" stroke="var(--terracotta)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+        <line x1="590" y1="70" x2="675" y2="70" stroke="var(--terracotta)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+        <line x1="815" y1="70" x2="900" y2="70" stroke="var(--terracotta)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+        <line x1="1040" y1="70" x2="1124" y2="70" stroke="var(--terracotta)" stroke-width="2" stroke-dasharray="6 4" opacity="0.5"/>
+        <!-- Arrow heads (at destination end of each line) -->
+        <polygon points="215,65 225,70 215,75" fill="var(--terracotta)" opacity="0.5"/>
+        <polygon points="440,65 450,70 440,75" fill="var(--terracotta)" opacity="0.5"/>
+        <polygon points="665,65 675,70 665,75" fill="var(--terracotta)" opacity="0.5"/>
+        <polygon points="890,65 900,70 890,75" fill="var(--terracotta)" opacity="0.5"/>
+        <polygon points="1114,65 1124,70 1114,75" fill="var(--terracotta)" opacity="0.5"/>
+
+        <!-- Node 1: Calendar (x=0) -->
+        <rect x="0" y="10" width="140" height="120" rx="14" fill="rgba(34,44,56,0.88)" stroke="rgba(232,236,242,0.14)" stroke-width="1"/>
+        <rect x="44" y="26" width="52" height="52" rx="12" fill="rgba(196,181,232,0.15)"/>
+        <rect x="56" y="38" width="28" height="4" rx="1" fill="var(--terracotta)" opacity="0.8"/>
+        <rect x="56" y="46" width="28" height="20" rx="2" fill="none" stroke="var(--terracotta)" stroke-width="1.5"/>
+        <line x1="56" y1="52" x2="84" y2="52" stroke="var(--terracotta)" stroke-width="1" opacity="0.5"/>
+        <line x1="70" y1="46" x2="70" y2="66" stroke="var(--terracotta)" stroke-width="1" opacity="0.5"/>
+        <text x="70" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="var(--ink)">Calendar</text>
+        <text x="70" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="var(--warm-gray)">Real events</text>
+
+        <!-- Node 2: Check In (x=225) -->
+        <rect x="225" y="10" width="140" height="120" rx="14" fill="rgba(34,44,56,0.88)" stroke="rgba(232,236,242,0.14)" stroke-width="1"/>
+        <rect x="269" y="26" width="52" height="52" rx="12" fill="rgba(107,196,154,0.12)"/>
+        <polyline points="283,52 291,60 307,44" fill="none" stroke="var(--moss)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="295" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="var(--ink)">Check In</text>
+        <text x="295" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="var(--warm-gray)">Start timer</text>
+
+        <!-- Node 3: Climb (x=450) -->
+        <rect x="450" y="10" width="140" height="120" rx="14" fill="rgba(34,44,56,0.88)" stroke="rgba(232,236,242,0.14)" stroke-width="1"/>
+        <rect x="494" y="26" width="52" height="52" rx="12" fill="rgba(109,179,168,0.12)"/>
+        <path d="M506 66 L520 40 L534 66 Z" fill="none" stroke="var(--dusty-rose)" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M516 44 L520 40 L524 44" fill="none" stroke="#E7EEF4" stroke-width="1.5" opacity="0.7"/>
+        <text x="520" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="var(--ink)">Climb</text>
+        <text x="520" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="var(--warm-gray)">Real-time</text>
+
+        <!-- Node 4: AI Verifies (x=675) -->
+        <rect x="675" y="10" width="140" height="120" rx="14" fill="rgba(34,44,56,0.88)" stroke="rgba(232,236,242,0.14)" stroke-width="1"/>
+        <rect x="719" y="26" width="52" height="52" rx="12" fill="rgba(232,160,184,0.12)"/>
+        <circle cx="745" cy="48" r="10" fill="none" stroke="var(--coral)" stroke-width="1.8"/>
+        <circle cx="745" cy="48" r="4" fill="var(--coral)" opacity="0.5"/>
+        <path d="M737 58 L745 62 L753 58" fill="none" stroke="var(--coral)" stroke-width="1.5"/>
+        <text x="745" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="var(--ink)">AI Verifies</text>
+        <text x="745" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="var(--warm-gray)">Claude Vision</text>
+
+        <!-- Node 5: Friends (x=900) -->
+        <rect x="900" y="10" width="140" height="120" rx="14" fill="rgba(34,44,56,0.88)" stroke="rgba(232,236,242,0.14)" stroke-width="1"/>
+        <rect x="944" y="26" width="52" height="52" rx="12" fill="rgba(196,181,232,0.12)"/>
+        <circle cx="962" cy="48" r="8" fill="none" stroke="var(--terracotta)" stroke-width="1.5"/>
+        <circle cx="978" cy="48" r="8" fill="none" stroke="var(--terracotta)" stroke-width="1.5"/>
+        <circle cx="962" cy="48" r="3" fill="var(--terracotta)" opacity="0.4"/>
+        <circle cx="978" cy="48" r="3" fill="var(--terracotta)" opacity="0.4"/>
+        <text x="970" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="var(--ink)">Friends See</text>
+        <text x="970" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="var(--warm-gray)">Leaderboard</text>
+
+        <!-- Node 6: Summit (x=1124) -->
+        <rect x="1124" y="10" width="140" height="120" rx="14" fill="rgba(34,44,56,0.88)" stroke="rgba(196,181,232,0.25)" stroke-width="1.5"/>
+        <rect x="1168" y="26" width="52" height="52" rx="12" fill="rgba(196,181,232,0.18)"/>
+        <path d="M1182 66 L1194 38 L1206 66 Z" fill="none" stroke="var(--terracotta)" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M1188 42 L1194 38 L1200 42" fill="var(--terracotta)" opacity="0.5"/>
+        <circle cx="1194" cy="54" r="2.5" fill="var(--terracotta)"/>
+        <text x="1194" y="100" text-anchor="middle" font-family="Inter, sans-serif" font-size="13" font-weight="600" fill="var(--ink)">Summit</text>
+        <text x="1194" y="118" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" fill="var(--warm-gray)">Committed</text>
+      </svg>
+    </div>
+
+    <!-- Three pillars with SVG icons -->
+    <div class="grid-3" style="gap: 20px;">
+      <div class="card" style="padding: 24px;">
+        <div class="flex center" style="gap: 14px; margin-bottom: 10px;">
+          <div class="icon" style="background: rgba(196,181,232,0.15);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <h2>Calendar tells you WHAT</h2>
+        </div>
+        <p style="font-size: 16px;">Google Calendar is the source of truth. Real events, not user-typed goals.</p>
+      </div>
+      <div class="card" style="padding: 24px;">
+        <div class="flex center" style="gap: 14px; margin-bottom: 10px;">
+          <div class="icon" style="background: rgba(107,196,154,0.12);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32l1.41-1.41"/></svg>
+          </div>
+          <h2>Camera tells you HOW</h2>
+        </div>
+        <p style="font-size: 16px;">Two AI layers verify you're showing up — Claude Vision + MediaPipe gaze.</p>
+      </div>
+      <div class="card" style="padding: 24px;">
+        <div class="flex center" style="gap: 14px; margin-bottom: 10px;">
+          <div class="icon" style="background: rgba(232,160,184,0.12);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
+          <h2>Friends tell you WHY</h2>
+        </div>
+        <p style="font-size: 16px;">Real accountability, not self-report. Designed for support, not shame.</p>
+      </div>
+    </div>
+  </div>
+  <div class="num">03 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 4 — HOW IT WORKS ══════════ -->
+<div class="slide">
+  <div class="bg-alt"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">How Product Works</div>
+    <h1 style="font-size: 48px; margin-bottom: 32px;">The mountain isn't decoration.<br/><span style="color: var(--terracotta);">It's the entire interface.</span></h1>
+    <div class="grid-2" style="gap: 32px; flex: 1;">
+      <div class="flex col" style="gap: 20px;">
+        <!-- Mountain diagram -->
+        <div class="card" style="padding: 24px;">
+          <h2 style="margin-bottom: 16px;">Mountain as Information Architecture</h2>
+          <svg width="100%" height="180" viewBox="0 0 520 180">
+            <!-- Mountain shape -->
+            <path d="M 20 170 L 140 50 L 180 70 L 260 20 L 340 70 L 380 50 L 500 170 Z" fill="rgba(42,61,71,0.6)" stroke="rgba(232,236,242,0.2)" stroke-width="1"/>
+            <!-- Snow cap -->
+            <path d="M 240 30 L 260 20 L 280 30 L 270 35 L 250 35 Z" fill="#E7EEF4" opacity="0.5"/>
+            <!-- Trail -->
+            <path d="M 80 160 Q 120 140 160 110 Q 200 80 230 55 L 260 30" fill="none" stroke="var(--terracotta)" stroke-width="2" stroke-dasharray="5 4" opacity="0.6"/>
+            <!-- Climbers on trail -->
+            <circle cx="120" cy="135" r="6" fill="var(--moss)" opacity="0.9"/>
+            <text x="120" y="155" text-anchor="middle" font-family="Inter" font-size="9" fill="var(--moss)">Climbing</text>
+            <circle cx="185" cy="90" r="6" fill="var(--coral)" opacity="0.9"/>
+            <text x="185" y="110" text-anchor="middle" font-family="Inter" font-size="9" fill="var(--coral)">Stalled</text>
+            <circle cx="245" cy="42" r="6" fill="var(--terracotta)" opacity="0.9"/>
+            <text x="245" y="62" text-anchor="middle" font-family="Inter" font-size="9" fill="var(--terracotta)">Summit</text>
+            <!-- Altitude axis -->
+            <line x1="40" y1="170" x2="40" y2="25" stroke="rgba(232,236,242,0.15)" stroke-width="1"/>
+            <text x="15" y="170" font-family="Inter" font-size="9" fill="rgba(154,168,180,0.4)" text-anchor="middle">0m</text>
+            <text x="15" y="95" font-family="Inter" font-size="9" fill="rgba(154,168,180,0.4)" text-anchor="middle">50m</text>
+            <text x="15" y="30" font-family="Inter" font-size="9" fill="rgba(154,168,180,0.4)" text-anchor="middle">100m</text>
+            <!-- Label -->
+            <text x="380" y="80" font-family="Inter" font-size="11" fill="var(--warm-gray)">Altitude = focus minutes</text>
+            <text x="380" y="98" font-family="Inter" font-size="11" fill="var(--warm-gray)">Stall = caught drifting</text>
+            <text x="380" y="116" font-family="Inter" font-size="11" fill="var(--warm-gray)">Summit = commitment kept</text>
+          </svg>
+        </div>
+
+        <div class="card">
+          <h2 style="margin-bottom: 14px;">Two-Layer Focus Verification</h2>
+          <div class="flex col" style="gap: 14px;">
+            <div class="flex center" style="gap: 12px;">
+              <div class="icon icon-sm" style="background: rgba(196,181,232,0.12);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+              </div>
+              <div>
+                <p style="font-size: 16px;"><strong style="color: var(--ink);">LLM</strong> — Claude Haiku Vision, periodic JPEG checks, distraction 0 to 1</p>
+              </div>
+            </div>
+            <div class="flex center" style="gap: 12px;">
+              <div class="icon icon-sm" style="background: rgba(107,196,154,0.12);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12h3m14 0h3M12 2v3m0 14v3"/></svg>
+              </div>
+              <div>
+                <p style="font-size: 16px;"><strong style="color: var(--ink);">CV</strong> — MediaPipe + OpenCV, continuous gaze at 30fps over WebSocket</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex col" style="gap: 20px;">
+        <div class="card" style="flex: 1;">
+          <h2 style="margin-bottom: 18px;">Features Shipped at Hackathon</h2>
+          <div class="flex col" style="gap: 14px;">
+            <div class="flex center" style="gap: 12px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Full Calendar to Mountain to Summit flow with timer</p>
+            </div>
+            <div class="flex center" style="gap: 12px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Friends screen with invite links and live climbing status</p>
+            </div>
+            <div class="flex center" style="gap: 12px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Snowball throw — throw at friends less focused than you</p>
+            </div>
+            <div class="flex center" style="gap: 12px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Trust toggles and low-pressure mode</p>
+            </div>
+            <div class="flex center" style="gap: 12px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(196,181,232,0.2)" stroke="var(--terracotta)" stroke-width="1.5"/><circle cx="9" cy="9" r="3" fill="var(--terracotta)" opacity="0.5"/></svg>
+              <p style="font-size: 16px;">Real-time eye-tracking over WebSocket (prototype)</p>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="background: rgba(196,181,232,0.06); border-color: rgba(196,181,232,0.18);">
+          <h2 style="margin-bottom: 10px;">Design Philosophy</h2>
+          <p style="font-size: 16px;">
+            <strong style="color: var(--ink);">Support, not shame.</strong> The mountain stalls — it doesn't fall off a cliff. Built for the realistic student, not the productivity maximalist.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">04 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 5 — MARKET OPPORTUNITY (with SVG chart) ══════════ -->
+<div class="slide">
+  <div class="bg"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Market Opportunity</div>
+    <h1 style="font-size: 48px; margin-bottom: 32px;">A $30B market that still hasn't solved <span style="color: var(--terracotta);">accountability.</span></h1>
+
+    <div class="grid-2" style="gap: 32px; flex: 1;">
+      <!-- Left: Concentric circle diagram -->
+      <div class="flex center" style="justify-content: center;">
+        <svg width="480" height="440" viewBox="0 0 480 440">
+          <!-- Bottom-aligned circles — all bottoms at y=375, shifted left for labels -->
+          <!-- TAM (outermost): r=165, cy = 375 - 165 = 210 -->
+          <circle cx="175" cy="210" r="165" fill="rgba(196,181,232,0.10)" stroke="rgba(196,181,232,0.35)" stroke-width="1.5"/>
+          <!-- SAM (middle): r=135, cy = 375 - 135 = 240 -->
+          <circle cx="175" cy="240" r="135" fill="rgba(107,196,154,0.10)" stroke="rgba(107,196,154,0.35)" stroke-width="1.5"/>
+          <!-- SOM (inner): r=105, cy = 375 - 105 = 270 -->
+          <circle cx="175" cy="270" r="105" fill="rgba(109,179,168,0.18)" stroke="rgba(109,179,168,0.45)" stroke-width="2"/>
+
+          <!-- TAM label with pointer from outer ring -->
+          <line x1="275" y1="80" x2="354" y2="80" stroke="rgba(196,181,232,0.4)" stroke-width="1"/>
+          <circle cx="275" cy="80" r="3" fill="var(--terracotta)" opacity="0.6"/>
+          <text x="360" y="72" font-family="var(--mono)" font-size="20" font-weight="600" fill="var(--terracotta)">$30.85B</text>
+          <text x="360" y="92" font-family="Inter" font-size="12" fill="var(--warm-gray)">TAM — Global Productivity</text>
+          <text x="360" y="108" font-family="Inter" font-size="11" fill="var(--warm-gray)">Apps by 2034</text>
+
+          <!-- SAM label with pointer from middle ring -->
+          <line x1="290" y1="160" x2="354" y2="160" stroke="rgba(107,196,154,0.4)" stroke-width="1"/>
+          <circle cx="290" cy="160" r="3" fill="var(--moss)" opacity="0.6"/>
+          <text x="360" y="152" font-family="var(--mono)" font-size="20" font-weight="600" fill="var(--moss)">$4.2B</text>
+          <text x="360" y="172" font-family="Inter" font-size="12" fill="var(--warm-gray)">SAM — Student Productivity</text>
+          <text x="360" y="188" font-family="Inter" font-size="11" fill="var(--warm-gray)">13.2% CAGR</text>
+
+          <!-- SOM label with pointer from inner circle (same style as TAM/SAM) -->
+          <line x1="270" y1="240" x2="354" y2="240" stroke="rgba(109,179,168,0.4)" stroke-width="1"/>
+          <circle cx="270" cy="240" r="3" fill="var(--dusty-rose)" opacity="0.6"/>
+          <text x="360" y="232" font-family="var(--mono)" font-size="20" font-weight="600" fill="var(--dusty-rose)">$1.2B</text>
+          <text x="360" y="252" font-family="Inter" font-size="12" fill="var(--warm-gray)">SOM — US College</text>
+          <text x="360" y="268" font-family="Inter" font-size="11" fill="var(--warm-gray)">20M students × $5/mo</text>
+
+          <!-- Callout to ARR box -->
+          <line x1="360" y1="280" x2="360" y2="298" stroke="var(--dusty-rose)" stroke-width="1" stroke-dasharray="4 3" opacity="0.6"/>
+          <rect x="340" y="298" width="120" height="44" rx="8" fill="rgba(109,179,168,0.15)" stroke="rgba(109,179,168,0.3)" stroke-width="1"/>
+          <text x="400" y="318" text-anchor="middle" font-family="var(--mono)" font-size="14" font-weight="600" fill="var(--dusty-rose)">$21M ARR</text>
+          <text x="400" y="334" text-anchor="middle" font-family="Inter" font-size="10" fill="var(--warm-gray)">0.5% capture · $5/mo</text>
+
+        </svg>
+      </div>
+
+      <!-- Right: Why students + expansion -->
+      <div class="flex col" style="gap: 20px;">
+        <div class="card" style="padding: 24px 28px;">
+          <h2 style="margin-bottom: 16px;">Why Students First</h2>
+          <div class="flex col" style="gap: 10px;">
+            <div class="flex center" style="gap: 10px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Highest pain — 47% cite procrastination as top problem</p>
+            </div>
+            <div class="flex center" style="gap: 10px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Existing calendar habits — zero habit formation needed</p>
+            </div>
+            <div class="flex center" style="gap: 10px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">Dense social graphs — study groups, cohorts, roommates</p>
+            </div>
+            <div class="flex center" style="gap: 10px;">
+              <svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <p style="font-size: 16px;">University distribution — wellness programs, tutoring</p>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="padding: 24px 28px;">
+          <h2 style="margin-bottom: 16px;">Expansion Path</h2>
+          <div class="flex col" style="gap: 14px;">
+            <div class="flex center" style="gap: 14px;">
+              <span class="pill" style="min-width: 80px; justify-content: center;">Phase 1</span>
+              <p style="font-size: 16px;">US college students to APAC and EU universities</p>
+            </div>
+            <div class="flex center" style="gap: 14px;">
+              <span class="pill pill-teal" style="min-width: 80px; justify-content: center;">Phase 2</span>
+              <p style="font-size: 16px;">Young professionals, remote workers, freelancers</p>
+            </div>
+            <div class="flex center" style="gap: 14px;">
+              <span class="pill pill-purple" style="min-width: 80px; justify-content: center;">Phase 3</span>
+              <p style="font-size: 16px;">Workplace edition — "Calculus 2" becomes "Q4 OKRs"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">05 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 6 — COMPETITOR ANALYSIS ══════════ -->
+<div class="slide">
+  <div class="bg-alt"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Competitor Analysis</div>
+    <h1 style="font-size: 48px; margin-bottom: 28px;">We combined <span style="color: var(--terracotta);">three real-time systems</span><br/>no productivity app has.</h1>
+    <div class="card" style="flex: 1; padding: 24px 32px;">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 200px;">Product</th>
+            <th>Calendar-Native</th>
+            <th>AI Verification</th>
+            <th>Social / Friends</th>
+            <th>Real-Time Visual</th>
+            <th>Trust Controls</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="hl"><td>CompCal</td><td><span class="ck">&#10003;</span></td><td><span class="ck">&#10003;</span></td><td><span class="ck">&#10003;</span></td><td><span class="ck">&#10003;</span></td><td><span class="ck">&#10003;</span></td></tr>
+          <tr><td>Forest</td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span style="color:var(--coral);">~</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td></tr>
+          <tr><td>Focusmate</td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span style="color:var(--coral);">~</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td></tr>
+          <tr><td>Habitica</td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span class="ck">&#10003;</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td></tr>
+          <tr><td>Toggl Track</td><td><span style="color:var(--coral);">~</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td></tr>
+          <tr><td>ChatGPT</td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td><td><span class="no">&mdash;</span></td></tr>
+        </tbody>
+      </table>
+      <div style="border-top: 1px solid var(--border); margin-top: 20px; padding-top: 20px;">
+        <div class="grid-3" style="gap: 28px;">
+          <div>
+            <div class="flex center" style="gap: 10px; margin-bottom: 8px;">
+              <div class="icon icon-sm" style="background: rgba(196,181,232,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" stroke-width="2"><path d="M12 22s-8-4.5-8-11a8 8 0 1 1 16 0c0 6.5-8 11-8 11Z"/><circle cx="12" cy="11" r="3"/></svg></div>
+              <h2 style="color: var(--terracotta);">Our Moat</h2>
+            </div>
+            <p style="font-size: 16px;">Calendar + AI verification + social broadcast is a compound no competitor offers.</p>
+          </div>
+          <div>
+            <div class="flex center" style="gap: 10px; margin-bottom: 8px;">
+              <div class="icon icon-sm" style="background: rgba(107,196,154,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+              <h2 style="color: var(--moss);">Positioning</h2>
+            </div>
+            <p style="font-size: 16px;">The first verified commitment platform built around your existing calendar.</p>
+          </div>
+          <div>
+            <div class="flex center" style="gap: 10px; margin-bottom: 8px;">
+              <div class="icon icon-sm" style="background: rgba(109,179,168,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-rose)" stroke-width="2"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2Z"/></svg></div>
+              <h2 style="color: var(--dusty-rose);">Network Effects</h2>
+            </div>
+            <p style="font-size: 16px;">Each friend makes the mountain more compelling. Social graph is the moat.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">06 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 7 — TECH ARCHITECTURE (SVG Diagram) ══════════ -->
+<div class="slide">
+  <div class="bg"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Tech Structure</div>
+    <h1 style="font-size: 48px; margin-bottom: 28px;">Built on Vercel — serverless, <span style="color: var(--terracotta);">scalable, zero-ops.</span></h1>
+
+    <!-- Architecture SVG Diagram -->
+    <svg width="1264" height="500" viewBox="0 0 1264 500" style="margin-bottom: 0;">
+      <!-- USER layer -->
+      <rect x="20" y="20" width="200" height="80" rx="14" fill="rgba(196,181,232,0.1)" stroke="rgba(196,181,232,0.3)" stroke-width="1.5"/>
+      <text x="120" y="52" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="var(--ink)">User Browser</text>
+      <text x="120" y="72" text-anchor="middle" font-family="Inter" font-size="12" fill="var(--warm-gray)">React + Vite + TypeScript</text>
+
+      <!-- Webcam -->
+      <rect x="20" y="130" width="200" height="60" rx="12" fill="rgba(232,160,184,0.08)" stroke="rgba(232,160,184,0.2)" stroke-width="1"/>
+      <text x="120" y="160" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="var(--coral)">Webcam JPEG Capture</text>
+      <text x="120" y="178" text-anchor="middle" font-family="Inter" font-size="11" fill="var(--warm-gray)">Canvas toDataURL()</text>
+
+      <!-- Arrow: User -> Vercel -->
+      <line x1="220" y1="60" x2="370" y2="60" stroke="var(--terracotta)" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <polygon points="368,55 378,60 368,65" fill="var(--terracotta)" opacity="0.7"/>
+      <text x="295" y="52" text-anchor="middle" font-family="Inter" font-size="10" fill="rgba(154,168,180,0.5)">HTTPS</text>
+
+      <!-- Arrow: Webcam -> Check Focus -->
+      <path d="M 220 160 Q 300 160 370 160" fill="none" stroke="var(--coral)" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <polygon points="368,155 378,160 368,165" fill="var(--coral)" opacity="0.7"/>
+      <text x="295" y="152" text-anchor="middle" font-family="Inter" font-size="10" fill="rgba(154,168,180,0.5)">base64</text>
+
+      <!-- VERCEL FUNCTIONS box -->
+      <rect x="380" y="10" width="400" height="230" rx="16" fill="rgba(34,44,56,0.6)" stroke="rgba(232,236,242,0.18)" stroke-width="1.5"/>
+      <text x="580" y="38" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="var(--terracotta)" letter-spacing="0.08em">VERCEL FUNCTIONS</text>
+
+      <!-- API boxes inside -->
+      <rect x="400" y="54" width="170" height="44" rx="8" fill="rgba(196,181,232,0.08)" stroke="rgba(196,181,232,0.2)" stroke-width="1"/>
+      <text x="485" y="73" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="var(--terracotta)">/api/auth/*</text>
+      <text x="485" y="88" text-anchor="middle" font-family="Inter" font-size="10" fill="var(--warm-gray)">Google OAuth</text>
+
+      <rect x="400" y="108" width="170" height="44" rx="8" fill="rgba(107,196,154,0.08)" stroke="rgba(107,196,154,0.2)" stroke-width="1"/>
+      <text x="485" y="127" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="var(--moss)">/api/sessions/*</text>
+      <text x="485" y="142" text-anchor="middle" font-family="Inter" font-size="10" fill="var(--warm-gray)">Start / End / Poll</text>
+
+      <rect x="590" y="54" width="170" height="44" rx="8" fill="rgba(232,160,184,0.08)" stroke="rgba(232,160,184,0.2)" stroke-width="1"/>
+      <text x="675" y="73" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="var(--coral)">/api/check-focus</text>
+      <text x="675" y="88" text-anchor="middle" font-family="Inter" font-size="10" fill="var(--warm-gray)">Vision distraction</text>
+
+      <rect x="590" y="108" width="170" height="44" rx="8" fill="rgba(109,179,168,0.08)" stroke="rgba(109,179,168,0.2)" stroke-width="1"/>
+      <text x="675" y="127" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="var(--dusty-rose)">/api/friends/*</text>
+      <text x="675" y="142" text-anchor="middle" font-family="Inter" font-size="10" fill="var(--warm-gray)">Presence / Invite</text>
+
+      <!-- Vercel label -->
+      <rect x="420" y="170" width="320" height="50" rx="10" fill="rgba(34,44,56,0.5)" stroke="rgba(232,236,242,0.1)" stroke-width="1"/>
+      <text x="580" y="192" text-anchor="middle" font-family="Inter" font-size="12" fill="var(--warm-gray)">Vercel Fluid Compute — zero cold starts, auto-scale</text>
+      <text x="580" y="208" text-anchor="middle" font-family="Inter" font-size="11" fill="rgba(154,168,180,0.4)">Node.js 24 LTS &middot; Stateless</text>
+
+      <!-- Arrow: Vercel -> Postgres -->
+      <line x1="580" y1="240" x2="580" y2="310" stroke="var(--moss)" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <polygon points="575,308 580,318 585,308" fill="var(--moss)" opacity="0.7"/>
+
+      <!-- POSTGRES -->
+      <rect x="440" y="320" width="280" height="80" rx="14" fill="rgba(107,196,154,0.06)" stroke="rgba(107,196,154,0.25)" stroke-width="1.5"/>
+      <text x="580" y="352" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="var(--moss)">Vercel Postgres</text>
+      <text x="580" y="372" text-anchor="middle" font-family="Inter" font-size="12" fill="var(--warm-gray)">Friends &middot; Sessions &middot; Outcomes</text>
+      <text x="580" y="390" text-anchor="middle" font-family="Inter" font-size="11" fill="rgba(154,168,180,0.4)">5s leaderboard polling &middot; Sub-second writes</text>
+
+      <!-- Arrow: Vercel -> Claude -->
+      <line x1="780" y1="100" x2="880" y2="100" stroke="var(--coral)" stroke-width="1.5" stroke-dasharray="6 4"/>
+      <polygon points="878,95 888,100 878,105" fill="var(--coral)" opacity="0.7"/>
+
+      <!-- CLAUDE AI -->
+      <rect x="890" y="50" width="340" height="110" rx="16" fill="rgba(232,160,184,0.06)" stroke="rgba(232,160,184,0.2)" stroke-width="1.5"/>
+      <text x="1060" y="80" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="var(--coral)">Anthropic Claude Haiku 4.5</text>
+      <text x="1060" y="102" text-anchor="middle" font-family="Inter" font-size="12" fill="var(--warm-gray)">Vision input via base64 JPEG</text>
+      <text x="1060" y="120" text-anchor="middle" font-family="Inter" font-size="12" fill="var(--warm-gray)">Returns distraction score 0 to 1</text>
+      <text x="1060" y="142" text-anchor="middle" font-family="Inter" font-size="11" fill="rgba(154,168,180,0.4)">Low latency &middot; No GPU infra needed</text>
+
+      <!-- Arrow: Vercel -> Google (routed below Claude arrow) -->
+      <line x1="780" y1="180" x2="882" y2="236" stroke="rgba(196,181,232,0.4)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <polygon points="877,239 890,240 882,230" fill="var(--terracotta)" opacity="0.5"/>
+
+      <!-- GOOGLE CALENDAR -->
+      <rect x="890" y="200" width="340" height="80" rx="14" fill="rgba(196,181,232,0.06)" stroke="rgba(196,181,232,0.2)" stroke-width="1"/>
+      <text x="1060" y="232" text-anchor="middle" font-family="Inter" font-size="14" font-weight="600" fill="var(--terracotta)">Google Calendar API</text>
+      <text x="1060" y="254" text-anchor="middle" font-family="Inter" font-size="12" fill="var(--warm-gray)">OAuth 2.0 &middot; Read-only scope &middot; Real events</text>
+
+      <!-- MEDIAPIPE (Prototype) -->
+      <rect x="20" y="220" width="200" height="80" rx="12" fill="rgba(109,179,168,0.06)" stroke="rgba(109,179,168,0.2)" stroke-width="1" stroke-dasharray="5 3"/>
+      <text x="120" y="250" text-anchor="middle" font-family="Inter" font-size="13" font-weight="600" fill="var(--dusty-rose)">FastAPI + MediaPipe</text>
+      <text x="120" y="268" text-anchor="middle" font-family="Inter" font-size="11" fill="var(--warm-gray)">Gaze tracking @ 30fps</text>
+      <text x="120" y="284" text-anchor="middle" font-family="Inter" font-size="10" fill="rgba(154,168,180,0.4)">WebSocket &middot; Prototype</text>
+
+      <!-- Arrow: MediaPipe -> User -->
+      <line x1="120" y1="220" x2="120" y2="100" stroke="var(--dusty-rose)" stroke-width="1" stroke-dasharray="4 3"/>
+      <polygon points="115,102 120,92 125,102" fill="var(--dusty-rose)" opacity="0.5"/>
+    </svg>
+  </div>
+  <div class="num">07 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 8 — GTM STRATEGY ══════════ -->
+<div class="slide">
+  <div class="bg-alt"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Go-to-Market</div>
+    <h1 style="font-size: 48px; margin-bottom: 32px;">The mountain spreads itself. <span style="color: var(--terracotta);">Friends invite friends.</span></h1>
+    <div class="grid-2" style="gap: 28px; flex: 1;">
+      <div class="flex col" style="gap: 20px;">
+        <div class="card">
+          <div class="flex center" style="gap: 12px; margin-bottom: 16px;">
+            <div class="icon" style="background: rgba(196,181,232,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+            <h2>Phase 1: Campus Viral (Months 1-6)</h2>
+          </div>
+          <div class="flex col" style="gap: 10px;">
+            <p style="font-size: 16px;"><span style="color: var(--terracotta); margin-right: 8px;">&rarr;</span>Launch at NYU, Columbia, Stanford with hackathon buzz</p>
+            <p style="font-size: 16px;"><span style="color: var(--terracotta); margin-right: 8px;">&rarr;</span>Friend invite links with mountain preview of climb history</p>
+            <p style="font-size: 16px;"><span style="color: var(--terracotta); margin-right: 8px;">&rarr;</span>Study group seeding: 1 user activates a cohort of 4-6</p>
+            <p style="font-size: 16px;"><span style="color: var(--terracotta); margin-right: 8px;">&rarr;</span>TikTok / IG: "watch me climb while studying" format</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="flex center" style="gap: 12px; margin-bottom: 16px;">
+            <div class="icon" style="background: rgba(107,196,154,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+            <h2>Phase 2: Institutional (Months 6-18)</h2>
+          </div>
+          <div class="flex col" style="gap: 10px;">
+            <p style="font-size: 16px;"><span style="color: var(--moss); margin-right: 8px;">&rarr;</span>Pilot with 5 university counseling offices</p>
+            <p style="font-size: 16px;"><span style="color: var(--moss); margin-right: 8px;">&rarr;</span>Embed in peer tutoring and study hall programs</p>
+            <p style="font-size: 16px;"><span style="color: var(--moss); margin-right: 8px;">&rarr;</span>Student government subsidized access</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex col" style="gap: 20px;">
+        <div class="card">
+          <h2 style="margin-bottom: 18px;">Revenue Model</h2>
+          <div class="flex col" style="gap: 14px;">
+            <div style="padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border); background: rgba(34,44,56,0.6);">
+              <div class="flex between center" style="margin-bottom: 6px;">
+                <p style="font-size: 17px; font-weight: 600; color: var(--ink);">Freemium</p>
+                <span class="stat" style="font-size: 20px;">Free</span>
+              </div>
+              <p style="font-size: 15px;">Basic mountain, 2 friends, 5 sessions/week</p>
+            </div>
+            <div style="padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(196,181,232,0.25); background: rgba(196,181,232,0.08);">
+              <div class="flex between center" style="margin-bottom: 6px;">
+                <p style="font-size: 17px; font-weight: 600; color: var(--ink);">CompCal Pro</p>
+                <span class="stat" style="font-size: 20px;">$5/mo</span>
+              </div>
+              <p style="font-size: 15px;">Unlimited sessions, full friend graph, stats, animal unlocks</p>
+            </div>
+            <div style="padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(107,196,154,0.2); background: rgba(107,196,154,0.06);">
+              <div class="flex between center" style="margin-bottom: 6px;">
+                <p style="font-size: 17px; font-weight: 600; color: var(--ink);">Campus License</p>
+                <span class="stat" style="font-size: 20px; color: var(--moss);">$2/student/yr</span>
+              </div>
+              <p style="font-size: 15px;">Bulk university license for wellness programs</p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="margin-bottom: 14px;">Key Metrics</h2>
+          <div class="grid-2" style="gap: 14px;">
+            <div><p style="font-size: 15px; color: var(--warm-gray); margin-bottom: 4px;">Invite conversion</p><p class="stat" style="font-size: 24px;">35%</p></div>
+            <div><p style="font-size: 15px; color: var(--warm-gray); margin-bottom: 4px;">Sessions/user/week</p><p class="stat" style="font-size: 24px;">4+</p></div>
+            <div><p style="font-size: 15px; color: var(--warm-gray); margin-bottom: 4px;">30-day retention</p><p class="stat" style="font-size: 24px;">60%</p></div>
+            <div><p style="font-size: 15px; color: var(--warm-gray); margin-bottom: 4px;">Friends per user</p><p class="stat" style="font-size: 24px;">5+</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">08 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 9 — ROADMAP ══════════ -->
+<div class="slide">
+  <div class="bg"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Product Roadmap</div>
+    <h1 style="font-size: 48px; margin-bottom: 32px;">From hackathon to <span style="color: var(--terracotta);">10M climbers.</span></h1>
+    <div class="flex" style="gap: 0; flex: 1; align-items: stretch;">
+      <div class="phase" style="border-color: rgba(196,181,232,0.25); background: rgba(196,181,232,0.05);">
+        <div class="label" style="font-size: 13px; color: var(--terracotta);">Now</div>
+        <h3>Foundation</h3>
+        <ul>
+          <li>&#10003; Calendar to summit loop</li>
+          <li>&#10003; Claude Vision focus checks</li>
+          <li>&#10003; Real-time friend leaderboard</li>
+          <li>&#10003; Snowball throw mechanic</li>
+          <li>&#10003; Google OAuth + Calendar</li>
+          <li>&#10003; Session timer, pause/resume</li>
+          <li>&#10003; MediaPipe gaze prototype</li>
+        </ul>
+      </div>
+      <div class="phase">
+        <div class="label" style="font-size: 13px;">Month 1-2</div>
+        <h3>Production</h3>
+        <ul><li>Wire MediaPipe into main flow</li><li>Real calendar sync pipeline</li><li>Unified backend storage</li><li>Mobile-responsive PWA</li><li>Polish onboarding + invites</li><li>Beta at NYU + Columbia</li></ul>
+      </div>
+      <div class="phase">
+        <div class="label" style="font-size: 13px;">Month 3-6</div>
+        <h3>Social Graph</h3>
+        <ul><li>Co-study shared mountain</li><li>Animal unlocks tied to summits</li><li>Multi-mountain difficulty</li><li>In-session AI study Q&amp;A</li><li>Weekly commitment digests</li><li>University pilot partnerships</li></ul>
+      </div>
+      <div class="phase">
+        <div class="label" style="font-size: 13px;">Month 6-12</div>
+        <h3>Platform</h3>
+        <ul><li>Browser extension</li><li>Native iOS + Android</li><li>Campus license + SSO</li><li>Study analytics dashboard</li><li>Animal skin marketplace</li><li>International expansion</li></ul>
+      </div>
+      <div class="phase">
+        <div class="label" style="font-size: 13px;">Year 2+</div>
+        <h3>Expansion</h3>
+        <ul><li>Workplace edition</li><li>Enterprise team mountains</li><li>LMS integrations (Canvas)</li><li>Research partnerships</li><li>Global leaderboards</li><li>$21M ARR target</li></ul>
+      </div>
+    </div>
+  </div>
+  <div class="num">09 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 10 — FUNDRAISING ══════════ -->
+<div class="slide">
+  <div class="bg-alt"></div>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Fundraising &amp; Usage</div>
+    <h1 style="font-size: 48px; margin-bottom: 32px;">Seeking <span style="color: var(--terracotta);">$500K seed</span> to ship, grow, and verify.</h1>
+    <div class="grid-2" style="gap: 28px; flex: 1;">
+      <div class="flex col" style="gap: 20px;">
+        <div class="card" style="border-color: rgba(196,181,232,0.18);">
+          <h2 style="margin-bottom: 18px;">Fund Allocation</h2>
+          <div class="fund-bar" style="margin-bottom: 24px;"><div style="width:40%;background:var(--terracotta);opacity:0.85;border-radius:4px;"></div><div style="width:25%;background:var(--moss);opacity:0.85;border-radius:4px;"></div><div style="width:20%;background:var(--dusty-rose);opacity:0.85;border-radius:4px;"></div><div style="width:15%;background:var(--coral);opacity:0.75;border-radius:4px;"></div></div>
+          <div class="flex col" style="gap: 16px;">
+            <div class="flex between center"><div class="flex center" style="gap:10px;"><div style="width:12px;height:12px;border-radius:3px;background:var(--terracotta);"></div><p style="font-size:17px;color:var(--ink);">Engineering &amp; Product (40%)</p></div><span class="stat" style="font-size:18px;">$200K</span></div>
+            <div class="flex between center"><div class="flex center" style="gap:10px;"><div style="width:12px;height:12px;border-radius:3px;background:var(--moss);"></div><p style="font-size:17px;color:var(--ink);">GTM &amp; Campus Growth (25%)</p></div><span class="stat" style="font-size:18px;color:var(--moss);">$125K</span></div>
+            <div class="flex between center"><div class="flex center" style="gap:10px;"><div style="width:12px;height:12px;border-radius:3px;background:var(--dusty-rose);"></div><p style="font-size:17px;color:var(--ink);">Infrastructure &amp; AI (20%)</p></div><span class="stat" style="font-size:18px;color:var(--dusty-rose);">$100K</span></div>
+            <div class="flex between center"><div class="flex center" style="gap:10px;"><div style="width:12px;height:12px;border-radius:3px;background:var(--coral);"></div><p style="font-size:17px;color:var(--ink);">Legal, Ops &amp; Reserve (15%)</p></div><span class="stat" style="font-size:18px;color:var(--coral);">$75K</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="margin-bottom: 16px;">12-Month Milestones</h2>
+          <div class="flex col" style="gap: 12px;">
+            <div class="flex center" style="gap:14px;"><span class="pill pill-purple" style="min-width:50px;justify-content:center;">M3</span><p style="font-size:16px;">1,000 MAU across 3 campuses, PWA shipped</p></div>
+            <div class="flex center" style="gap:14px;"><span class="pill pill-green" style="min-width:50px;justify-content:center;">M6</span><p style="font-size:16px;">10,000 MAU, first 3 campus licenses</p></div>
+            <div class="flex center" style="gap:14px;"><span class="pill pill-teal" style="min-width:50px;justify-content:center;">M9</span><p style="font-size:16px;">50,000 MAU, $5K MRR, Series A metrics</p></div>
+            <div class="flex center" style="gap:14px;"><span class="pill" style="min-width:50px;justify-content:center;">M12</span><p style="font-size:16px;">100K MAU, $30K MRR, iOS + Android beta</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex col" style="gap: 20px;">
+        <div class="card" style="background: rgba(196,181,232,0.05); border-color: rgba(196,181,232,0.18); flex: 1;">
+          <h2 style="margin-bottom: 20px;">Why Invest Now</h2>
+          <div class="flex col" style="gap: 20px;">
+            <div class="flex" style="gap: 16px;">
+              <div class="icon" style="background: rgba(196,181,232,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" stroke-width="2"><path d="M8 21l4-10 4 10"/><path d="M10 16h4"/><path d="M3 21h18"/></svg></div>
+              <div><p style="font-size:17px;font-weight:600;color:var(--ink);margin-bottom:4px;">Full loop shipped in 24 hours</p><p style="font-size:16px;">Calendar to summit with AI verification. Not a prototype — a product.</p></div>
+            </div>
+            <div class="flex" style="gap: 16px;">
+              <div class="icon" style="background: rgba(107,196,154,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <div><p style="font-size:17px;font-weight:600;color:var(--ink);margin-bottom:4px;">We are the user</p><p style="font-size:16px;">Four overloaded students built this because we needed it.</p></div>
+            </div>
+            <div class="flex" style="gap: 16px;">
+              <div class="icon" style="background: rgba(109,179,168,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--dusty-rose)" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+              <div><p style="font-size:17px;font-weight:600;color:var(--ink);margin-bottom:4px;">Novel compound moat</p><p style="font-size:16px;">Calendar + AI + social broadcast. No competitor has all three.</p></div>
+            </div>
+            <div class="flex" style="gap: 16px;">
+              <div class="icon" style="background: rgba(232,160,184,0.12);"><svg viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+              <div><p style="font-size:17px;font-weight:600;color:var(--ink);margin-bottom:4px;">$4.2B SAM, growing 13.2% CAGR</p><p style="font-size:16px;">Students are the first generation living in their calendar.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="margin-bottom: 14px;">Expected Outcomes, 18 Months</h2>
+          <div class="grid-2" style="gap: 16px;">
+            <div style="text-align:center;padding:16px;border-radius:12px;border:1px solid var(--border);"><div class="stat" style="font-size:28px;margin-bottom:4px;">100K</div><p style="font-size:15px;">MAU</p></div>
+            <div style="text-align:center;padding:16px;border-radius:12px;border:1px solid var(--border);"><div class="stat" style="font-size:28px;color:var(--moss);margin-bottom:4px;">$30K</div><p style="font-size:15px;">MRR</p></div>
+            <div style="text-align:center;padding:16px;border-radius:12px;border:1px solid var(--border);"><div class="stat" style="font-size:28px;color:var(--dusty-rose);margin-bottom:4px;">10+</div><p style="font-size:15px;">Uni Partners</p></div>
+            <div style="text-align:center;padding:16px;border-radius:12px;border:1px solid var(--border);"><div class="stat" style="font-size:28px;color:var(--coral);margin-bottom:4px;">Series A</div><p style="font-size:15px;">Month 18</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">10 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 11 — SOCIAL GOOD ══════════ -->
+<div class="slide">
+  <div class="bg"></div>
+  <svg class="mtn" width="760" height="520" viewBox="0 0 100 70" preserveAspectRatio="xMaxYMax meet" style="opacity: 0.08;">
+    <path d="M 0 70 Q 18 42 32 38 L 38 28 Q 46 16 54 8 L 62 -2 Q 66 -10 70 -12 L 74 -8 Q 78 0 82 6 L 88 18 Q 94 32 100 42 L 100 70 Z" fill="#2B4353"/>
+    <path d="M 62 -2 Q 66 -10 70 -12 L 74 -8 Q 76 -6 77 -4 L 72 2 L 64 4 Z" fill="#E7EEF4" opacity="0.6"/>
+  </svg>
+  <div class="inner">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div class="label">Educational &amp; Social Good</div>
+    <h1 style="font-size: 54px; max-width: 700px; margin-bottom: 12px;">We built it because<br/><span style="color: var(--terracotta);">we are the user.</span></h1>
+    <p class="sub" style="margin-bottom: 40px;">CompCal creates genuine social support for studying — not surveillance, not shame.</p>
+    <div class="grid-3" style="gap: 24px; margin-bottom: 32px;">
+      <div class="card" style="padding: 28px;">
+        <div class="icon icon-lg" style="background: rgba(196,181,232,0.12); margin-bottom: 16px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" stroke-width="2" stroke-linecap="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        </div>
+        <h2 style="margin-bottom: 10px;">Academic Follow-Through</h2>
+        <p style="font-size: 16px;">Builds reliable study habits with social support instead of isolation. Rewards consistency over perfection.</p>
+      </div>
+      <div class="card" style="padding: 28px;">
+        <div class="icon icon-lg" style="background: rgba(107,196,154,0.12); margin-bottom: 16px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--moss)" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h2 style="margin-bottom: 10px;">Community over Competition</h2>
+        <p style="font-size: 16px;">Watching friends climb motivates through connection. Outcomes visible after summit, not during.</p>
+      </div>
+      <div class="card" style="padding: 28px;">
+        <div class="icon icon-lg" style="background: rgba(232,160,184,0.12); margin-bottom: 16px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--coral)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h2 style="margin-bottom: 10px;">Trust by Design</h2>
+        <p style="font-size: 16px;">Users control focus check intensity. Low-pressure mode available. Support, not judgment.</p>
+      </div>
+    </div>
+    <div class="card" style="background: rgba(196,181,232,0.05); border-color: rgba(196,181,232,0.15); padding: 28px 36px;">
+      <div class="grid-2" style="gap: 40px; align-items: center;">
+        <div>
+          <p style="font-family: var(--serif); font-size: 22px; font-style: italic; color: var(--ink); line-height: 1.5;">
+            "A student who has 5 deadlines and 3 study groups and one bad night can still show up tomorrow. CompCal is for them."
+          </p>
+        </div>
+        <div class="flex col" style="gap: 12px;">
+          <div class="flex center" style="gap: 10px;"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><p style="font-size: 16px;">Reduces academic anxiety by externalizing commitment</p></div>
+          <div class="flex center" style="gap: 10px;"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><p style="font-size: 16px;">Builds community in remote and hybrid environments</p></div>
+          <div class="flex center" style="gap: 10px;"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><p style="font-size: 16px;">Creates data on what students actually struggle with</p></div>
+          <div class="flex center" style="gap: 10px;"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="rgba(107,196,154,0.2)" stroke="var(--moss)" stroke-width="1.5"/><polyline points="5.5,9 8,11.5 12.5,6.5" fill="none" stroke="var(--moss)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><p style="font-size: 16px;">Bridges the gap between planning and doing</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="num">11 / 12</div>
+</div>
+
+
+<!-- ══════════ SLIDE 12 — TEAM ══════════ -->
+<div class="slide">
+  <div class="bg-alt"></div>
+  <div class="inner" style="justify-content: space-between;">
+    <div class="brand"><div class="brand-dot"></div><span>CompCal</span></div>
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 48px;">
+      <div>
+        <div class="label">The Team</div>
+        <h1 style="font-size: 48px;">Four students who stayed up all night<br/><span style="color: var(--terracotta);">because we cared.</span></h1>
+      </div>
+      <div class="grid-4" style="gap: 20px;">
+        <div class="card" style="text-align: center; padding: 28px 20px;">
+          <img src="candy.jpeg" style="width: 60px; height: 60px; border-radius: 50%; border: 1px solid rgba(196,181,232,0.2); margin: 0 auto 16px; display: block; object-fit: cover;" alt="Candy Xie"/>
+          <p style="font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 4px;">Candy Xie</p>
+          <p style="font-size: 15px; font-weight: 600; color: var(--terracotta); margin-bottom: 10px;">UI / Frontend / Pitch</p>
+          <p style="font-size: 15px;">Design systems, component architecture, pixel-art aesthetic</p>
+        </div>
+        <div class="card" style="text-align: center; padding: 28px 20px;">
+          <img src="andy.jpeg" style="width: 60px; height: 60px; border-radius: 50%; border: 1px solid rgba(109,179,168,0.2); margin: 0 auto 16px; display: block; object-fit: cover;" alt="Andy Li"/>
+          <p style="font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 4px;">Andy Li</p>
+          <p style="font-size: 15px; font-weight: 600; color: var(--dusty-rose); margin-bottom: 10px;">Design / Graphics / Pitch</p>
+          <p style="font-size: 15px;">Visual identity, mountain animations, pitch narrative</p>
+        </div>
+        <div class="card" style="text-align: center; padding: 28px 20px;">
+          <img src="travis.jpeg" style="width: 60px; height: 60px; border-radius: 50%; border: 1px solid rgba(107,196,154,0.2); margin: 0 auto 16px; display: block; object-fit: cover;" alt="Travis Sim"/>
+          <p style="font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 4px;">Travis Sim</p>
+          <p style="font-size: 15px; font-weight: 600; color: var(--moss); margin-bottom: 10px;">Backend</p>
+          <p style="font-size: 15px;">Vercel Functions, Postgres, OAuth, session pipeline</p>
+        </div>
+        <div class="card" style="text-align: center; padding: 28px 20px;">
+          <img src="zach.jpeg" style="width: 60px; height: 60px; border-radius: 50%; border: 1px solid rgba(232,160,184,0.2); margin: 0 auto 16px; display: block; object-fit: cover;" alt="Zachary Galbraith"/>
+          <p style="font-size: 18px; font-weight: 600; color: var(--ink); margin-bottom: 4px;">Zachary Galbraith</p>
+          <p style="font-size: 15px; font-weight: 600; color: var(--coral); margin-bottom: 10px;">Backend</p>
+          <p style="font-size: 15px;">MediaPipe eye tracking, AI vision, data architecture</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex between center">
+      <p style="font-size: 16px; color: var(--warm-gray);">NYU EEG &times; Vercel Hackathon &middot; Educational and Social Good Track</p>
+      <div style="text-align: right;">
+        <p style="font-family: var(--serif); font-size: 36px; color: var(--ink); margin-bottom: 4px;">CompCal</p>
+        <p style="font-size: 16px; color: var(--warm-gray);">Your day is a mountain. Climb it with friends.</p>
+      </div>
+    </div>
+  </div>
+  <div class="num">12 / 12</div>
+</div>
+
+</div><!-- /deck -->
+
+<script>
+(function () {
+  var slides = document.querySelectorAll('.slide');
+  var total = slides.length;
+  var counter = document.getElementById('counter');
+  var current = 0;
+  function go(i) { if (i < 0 || i >= total) return; slides[current].classList.remove('active'); current = i; slides[current].classList.add('active'); counter.textContent = (current + 1) + ' / ' + total; }
+  function next() { go(current + 1); }
+  function prev() { go(current - 1); }
+  function resize() { var d = document.getElementById('deck'); var s = Math.min(window.innerWidth / 1440, window.innerHeight / 900); d.style.transform = 'scale(' + s + ')'; d.style.marginLeft = ((window.innerWidth - 1440 * s) / 2) + 'px'; d.style.marginTop = ((window.innerHeight - 900 * s) / 2) + 'px'; }
+  document.getElementById('nextBtn').addEventListener('click', next);
+  document.getElementById('prevBtn').addEventListener('click', prev);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft' || e.key === 'Backspace' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+    if (e.key === 'Home') { e.preventDefault(); go(0); }
+    if (e.key === 'End') { e.preventDefault(); go(total - 1); }
+  });
+  var tx = 0;
+  document.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; });
+  document.addEventListener('touchend', function (e) { var dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); } });
+  window.addEventListener('resize', resize);
+  resize();
+  go(0);
+})();
+</script>
+</body>
+</html>
