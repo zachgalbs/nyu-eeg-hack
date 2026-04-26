@@ -86,6 +86,7 @@ export function MountainScreen() {
   const [friendsPanelOpen, setFriendsPanelOpen] = useState(false);
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
+  const elapsedSecondsRef = useRef(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -236,7 +237,11 @@ export function MountainScreen() {
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
     const id = window.setInterval(() => {
-      setElapsedSeconds((prev) => (prev >= totalSeconds ? prev : prev + 1));
+      setElapsedSeconds((prev) => {
+        const next = prev >= totalSeconds ? prev : prev + 1;
+        elapsedSecondsRef.current = next;
+        return next;
+      });
     }, 1000);
     return () => window.clearInterval(id);
   }, [totalSeconds, isPaused, hasCheckedIn]);
@@ -368,42 +373,46 @@ export function MountainScreen() {
 
   useEffect(() => {
     if (isPaused || !hasCheckedIn) return;
-    const focusCheckInterval = window.setInterval(() => {
-      captureAndCheck().then((isDistracted) => {
-      const checkResult = isDistracted ? 'distracted' : 'verified';
-      setLastCheck(checkResult);
-      setToastType(checkResult);
-      setShowToast(true);
 
-      if (isDistracted) {
-        setDistractedChecksTotal((prev) => prev + 1);
-        setFocusScore((prev) => Math.max(70, prev - 3));
-        setDistractionCount((prev) => {
-          const newCount = prev + 1;
-          if (newCount >= 3) {
-            void (async () => {
-              const roastText = await generateRoast({
-                userName: "You",
-                userBlock: event.name,
-                minutesIn: Math.floor(elapsedSeconds / 60),
-                trigger: "auto",
-              });
-              setActiveRoast({ text: roastText, trigger: "auto" });
-            })();
-            return 0;
-          }
-          return newCount;
-        });
-      } else {
-        setFocusScore((prev) => Math.min(100, prev + 1));
-      }
+    const runCheck = () => {
+      captureAndCheck().then((isDistracted) => {
+        const checkResult = isDistracted ? 'distracted' : 'verified';
+        setLastCheck(checkResult);
+        setToastType(checkResult);
+        setShowToast(true);
+
+        if (isDistracted) {
+          setDistractedChecksTotal((prev) => prev + 1);
+          setFocusScore((prev) => Math.max(70, prev - 3));
+          setDistractionCount((prev) => {
+            const newCount = prev + 1;
+            if (newCount >= 3) {
+              void (async () => {
+                const roastText = await generateRoast({
+                  userName: "You",
+                  userBlock: event.name,
+                  minutesIn: Math.floor(elapsedSecondsRef.current / 60),
+                  trigger: "auto",
+                });
+                setActiveRoast({ text: roastText, trigger: "auto" });
+              })();
+              return 0;
+            }
+            return newCount;
+          });
+        } else {
+          setFocusScore((prev) => Math.min(100, prev + 1));
+        }
 
         window.setTimeout(() => setShowToast(false), 2500);
       }).catch(() => {});
-    }, 60000);
+    };
 
+    // Check immediately on check-in, then every 60s
+    runCheck();
+    const focusCheckInterval = window.setInterval(runCheck, 60000);
     return () => window.clearInterval(focusCheckInterval);
-  }, [isPaused, hasCheckedIn, elapsedSeconds, event.name]);
+  }, [isPaused, hasCheckedIn, event.name]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
   const blockLabel =
