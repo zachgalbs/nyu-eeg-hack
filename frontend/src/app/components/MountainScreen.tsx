@@ -95,6 +95,7 @@ export function MountainScreen() {
   const [isChecking, setIsChecking] = useState(false);
   const [debugError, setDebugError] = useState<string | null>(null);
   const [debugScore, setDebugScore] = useState<{ score: number; raw: string } | null>(null);
+  const [showGeminiInfo, setShowGeminiInfo] = useState(false);
   const [artReady, setArtReady] = useState(false);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
   const [isThrowing, setIsThrowing] = useState(false);
@@ -837,12 +838,64 @@ export function MountainScreen() {
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div
-                        className={`mb-1 font-semibold ${lastCheck === "verified" ? "text-moss" : "text-coral"}`}
-                        style={{ fontSize: "24px", fontWeight: 600 }}
-                      >
-                        {lastCheck === "verified" ? "Focused" : "Not focused"}
+                      <div className="mb-1 flex items-center gap-1.5">
+                        <span
+                          className={`font-semibold ${lastCheck === "verified" ? "text-moss" : "text-coral"}`}
+                          style={{ fontSize: "24px", fontWeight: 600 }}
+                        >
+                          {lastCheck === "verified" ? "Focused" : "Not focused"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowGeminiInfo((v) => !v)}
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition-colors ${showGeminiInfo ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background-solid/70 text-warm-gray hover:border-primary hover:text-primary"}`}
+                          aria-label="Show Gemini classification details"
+                        >
+                          i
+                        </button>
                       </div>
+
+                      {showGeminiInfo && (
+                        <div className="mb-2 rounded-xl border border-border bg-background-solid/80 p-3 text-[11px]">
+                          <p className="mb-1 font-semibold text-foreground" style={{ fontFamily: "var(--font-mono)" }}>
+                            Gemini 2.5 Flash
+                          </p>
+                          {isChecking ? (
+                            <p className="text-warm-gray">Checking...</p>
+                          ) : debugScore ? (
+                            <>
+                              <div className="mb-1.5 flex items-center gap-2">
+                                <span className="text-warm-gray">Score:</span>
+                                <span className={`font-semibold ${debugScore.score > 0.5 ? "text-coral" : "text-moss"}`}>
+                                  {debugScore.score.toFixed(2)}
+                                </span>
+                                <span className="text-warm-gray">→</span>
+                                <span className={`font-semibold ${debugScore.score > 0.5 ? "text-coral" : "text-moss"}`}>
+                                  {debugScore.score > 0.5 ? "distracted" : "focused"}
+                                </span>
+                              </div>
+                              {debugScore.raw && (
+                                <div>
+                                  <p className="mb-0.5 text-warm-gray">Raw response:</p>
+                                  <p className="font-mono text-foreground">{debugScore.raw}</p>
+                                </div>
+                              )}
+                              {debugImage && (
+                                <div className="mt-2">
+                                  <p className="mb-0.5 text-warm-gray">Captured frame:</p>
+                                  <img src={debugImage} alt="Captured frame" className="h-16 w-24 rounded object-cover" />
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-warm-gray">No check run yet — tap "check now" below.</p>
+                          )}
+                          {debugError && (
+                            <p className="mt-1 text-coral">{debugError}</p>
+                          )}
+                        </div>
+                      )}
+
                       {throwTarget && throwTargetFocus !== null ? (
                         <p className="mt-1 text-[11px] text-warm-gray">
                           Throw unlocks when you are more focused than {throwTarget.name}.
@@ -871,15 +924,6 @@ export function MountainScreen() {
                       >
                         {isChecking ? 'Checking...' : '[debug] check now'}
                       </button>
-                      {debugError && (
-                        <p className="mt-1 text-[10px] text-coral">{debugError}</p>
-                      )}
-                      {debugScore && (
-                        <p className="mt-1 text-[10px] text-warm-gray">
-                          Claude: {debugScore.score.toFixed(2)} → {debugScore.score > 0.5 ? 'distracted' : 'focused'}
-                          {debugScore.raw && debugScore.raw !== debugScore.score.toFixed(2) ? ` (raw: ${debugScore.raw.slice(0, 40)})` : ''}
-                        </p>
-                      )}
                     </div>
                   </div>
                 </div>
