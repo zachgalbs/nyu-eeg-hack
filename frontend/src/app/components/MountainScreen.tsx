@@ -896,11 +896,6 @@ export function MountainScreen() {
                         </div>
                       )}
 
-                      {throwTarget && throwTargetFocus !== null ? (
-                        <p className="mt-1 text-[11px] text-warm-gray">
-                          Throw unlocks when you are more focused than {throwTarget.name}.
-                        </p>
-                      ) : null}
                       <button
                         type="button"
                         disabled={isChecking}
