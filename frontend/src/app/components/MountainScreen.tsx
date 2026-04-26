@@ -781,12 +781,7 @@ export function MountainScreen() {
                       style={{ width: 200, height: 140 }}
                     >
                       {debugImage ? (
-                        <>
-                          <img src={debugImage} alt="Captured frame" className="absolute inset-0 h-full w-full object-cover" />
-                          <div className="absolute inset-0 flex items-end justify-center pb-1">
-                            <span className="rounded bg-black/50 px-1 text-[9px] text-white">{isPaused ? "PAUSED" : "LIVE"}</span>
-                          </div>
-                        </>
+                        <img src={debugImage} alt="Captured frame" className="absolute inset-0 h-full w-full object-cover" />
                       ) : (
                         <div className="text-center">
                           <div
