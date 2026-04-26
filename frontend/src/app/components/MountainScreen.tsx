@@ -408,10 +408,14 @@ export function MountainScreen() {
       }).catch(() => {});
     };
 
-    // Check immediately on check-in, then every 60s
+    // Check immediately on check-in, then at a random interval between 2-3 minutes
+    const scheduleNext = () => {
+      const delay = (120 + Math.random() * 60) * 1000;
+      return window.setTimeout(() => { runCheck(); focusCheckRef.current = scheduleNext(); }, delay);
+    };
     runCheck();
-    const focusCheckInterval = window.setInterval(runCheck, 60000);
-    return () => window.clearInterval(focusCheckInterval);
+    const focusCheckRef = { current: scheduleNext() };
+    return () => window.clearTimeout(focusCheckRef.current);
   }, [isPaused, hasCheckedIn, event.name]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
