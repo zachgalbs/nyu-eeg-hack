@@ -3,11 +3,9 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install && cd frontend && npm ci",
   "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ],
   "experimentalServices": {
     "frontend": {
