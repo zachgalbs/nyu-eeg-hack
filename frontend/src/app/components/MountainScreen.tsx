@@ -840,12 +840,6 @@ export function MountainScreen() {
                                   <p className="font-mono text-foreground">{debugScore.raw}</p>
                                 </div>
                               )}
-                              {debugImage && (
-                                <div className="mt-2">
-                                  <p className="mb-0.5 text-warm-gray">Captured frame:</p>
-                                  <img src={debugImage} alt="Captured frame" className="h-16 w-24 rounded object-cover" />
-                                </div>
-                              )}
                             </>
                           ) : (
                             <p className="text-warm-gray">No check run yet — tap "check now" below.</p>
