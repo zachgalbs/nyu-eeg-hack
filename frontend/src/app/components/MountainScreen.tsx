@@ -5,7 +5,6 @@ import {
   Play,
   HandHeart,
   LogOut,
-  Users,
   X,
 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
@@ -719,35 +718,6 @@ export function MountainScreen() {
                 </p>
               ) : null}
               <div className="mt-3 flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFriendsPanelOpen(true)}
-                  className="flex min-w-0 items-center gap-2 rounded-full border border-border bg-background-solid/55 px-2.5 py-1 text-[11px] text-foreground transition-opacity hover:opacity-85"
-                >
-                  <span className="inline-flex -space-x-1">
-                    {stripFriends.map((friend) => (
-                      <span
-                        key={friend.id}
-                        className="flex h-5 w-5 items-center justify-center rounded-full border border-card bg-card text-[9px] font-semibold text-ink"
-                      >
-                        {friend.name.charAt(0)}
-                      </span>
-                    ))}
-                  </span>
-                  <span>
-                    {activeFriends.length > 0
-                      ? `${activeFriends.length} climbing`
-                      : "No active climbers"}
-                  </span>
-                  {overflowActiveCount > 0 ? <span>+{overflowActiveCount}</span> : null}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/friends")}
-                  className="rounded-full border border-border bg-background-solid/55 px-2.5 py-1 text-[11px] text-foreground transition-opacity hover:opacity-85"
-                >
-                  Full list
-                </button>
                 {activeFriends.length > 0 ? (
                   <select
                     value={throwTarget ? String(throwTarget.id) : ""}
@@ -772,16 +742,6 @@ export function MountainScreen() {
               </div>
               </div>
               <div className="flex shrink-0 flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFriendsPanelOpen(true)}
-                  className="flex items-center justify-center gap-1 rounded-full border border-border bg-card px-3 py-2 text-foreground transition-opacity hover:opacity-80"
-                  aria-label="Open friends panel"
-                  style={{ fontSize: "12px", fontWeight: 600 }}
-                >
-                  <Users className="h-4 w-4" strokeWidth={2} />
-                  Friends
-                </button>
                 <button
                   type="button"
                   onClick={exitSession}
@@ -817,8 +777,8 @@ export function MountainScreen() {
                 <div>
                   <div className="flex items-center gap-4">
                     <div
-                      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-mountain/50 text-[10px] text-foreground"
-                      style={{ width: 80, height: 60 }}
+                      className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-mountain/50 text-[10px] text-foreground"
+                      style={{ width: 200, height: 140 }}
                     >
                       {debugImage ? (
                         <>
@@ -917,7 +877,7 @@ export function MountainScreen() {
                         }}
                         className="mt-2 rounded-full border border-border bg-background-solid/70 px-3 py-1 text-[11px] text-warm-gray transition-opacity hover:opacity-80 disabled:opacity-50"
                       >
-                        {isChecking ? 'Checking...' : '[debug] check now'}
+                        {isChecking ? 'Checking...' : 'check now'}
                       </button>
                     </div>
                   </div>
@@ -1010,13 +970,6 @@ export function MountainScreen() {
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                onClick={() => navigate("/friends")}
-                className="mt-3 w-full rounded-full border border-border bg-background-solid/65 py-2 text-sm font-semibold text-foreground transition-opacity hover:opacity-85"
-              >
-                Open full friends screen
-              </button>
             </div>
           </div>
         )}
