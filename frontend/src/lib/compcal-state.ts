@@ -100,6 +100,29 @@ export function getLatestSessionOutcome(eventId?: string): SessionOutcome | null
   return all.find((s) => s.eventId === eventId) ?? all[0];
 }
 
+export function getDailyCommitmentSummary(): {
+  completedSessions: number;
+  keptCommitments: number;
+  avgFocusScore: number;
+  totalFocusedMinutes: number;
+} {
+  const all = getSessionOutcomes();
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const recent = all.filter((s) => new Date(s.completedAt).getTime() >= startOfToday.getTime());
+  const totalFocusedMinutes = recent.reduce((sum, s) => sum + s.completedMinutes, 0);
+  const keptCommitments = recent.filter((s) => s.keptCommitment).length;
+  const avgFocusScore = recent.length
+    ? Math.round(recent.reduce((sum, s) => sum + s.focusScore, 0) / recent.length)
+    : 0;
+  return {
+    completedSessions: recent.length,
+    keptCommitments,
+    avgFocusScore,
+    totalFocusedMinutes,
+  };
+}
+
 export function getWeeklyCommitmentSummary(): {
   completedSessions: number;
   keptCommitments: number;

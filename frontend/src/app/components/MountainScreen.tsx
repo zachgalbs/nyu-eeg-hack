@@ -71,7 +71,7 @@ export function MountainScreen() {
     duration: navState?.duration || fallbackEvent.duration,
   };
 
-  const totalSeconds = Math.min(Math.max(45, event.duration * 60), 180);
+  const totalSeconds = Math.max(45, event.duration * 60);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [hasCheckedIn, setHasCheckedIn] = useState(false);

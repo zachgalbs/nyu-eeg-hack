@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { format, startOfDay } from 'date-fns';
 import { eventsForDay, coClimbingNames, type CalendarEvent } from '../../data/calendarFixtures';
-import { getWeeklyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
+import { getDailyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
 import { getGoogleToken } from '../../lib/auth';
 import { fetchMyEventsThisWeek, AuthError } from '../../lib/googleCalendar';
 
@@ -44,7 +44,7 @@ export function CalendarScreen() {
   const dayEvents = eventsForDay(today, myEvents);
   const mine = dayEvents.filter((e) => e.ownerId === 'me');
   const others = dayEvents.filter((e) => e.ownerId !== 'me');
-  const weekly = useMemo(() => getWeeklyCommitmentSummary(), []);
+  const daily = useMemo(() => getDailyCommitmentSummary(), []);
   const plannedTodayMinutes = useMemo(
     () => mine.reduce((sum, e) => sum + durationMinutes(e), 0),
     [mine],
@@ -129,14 +129,14 @@ export function CalendarScreen() {
             <p className="text-lg font-semibold text-ink">{plannedTodayMinutes}m</p>
           </div>
           <div className="rounded-xl border border-border bg-background-solid/50 p-3">
-            <p className="text-[11px] text-warm-gray">Focused this week</p>
+            <p className="text-[11px] text-warm-gray">Focused today</p>
             <p className="text-lg font-semibold text-ink">
-              {Math.floor(weekly.totalFocusedMinutes / 60)}h {weekly.totalFocusedMinutes % 60}m
+              {Math.floor(daily.totalFocusedMinutes / 60)}h {daily.totalFocusedMinutes % 60}m
             </p>
           </div>
           <div className="rounded-xl border border-border bg-background-solid/50 p-3">
-            <p className="text-[11px] text-warm-gray">Sessions this week</p>
-            <p className="text-lg font-semibold text-ink">{weekly.completedSessions}</p>
+            <p className="text-[11px] text-warm-gray">Sessions today</p>
+            <p className="text-lg font-semibold text-ink">{daily.completedSessions}</p>
           </div>
         </div>
       </section>
