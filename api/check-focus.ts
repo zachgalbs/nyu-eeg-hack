@@ -10,10 +10,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!imageBase64) return res.status(400).json({ error: 'Missing imageBase64' })
 
   const task = eventName ? `"${eventName}"` : 'their current task'
-  const prompt = `You are a focus detector for a webcam-based study app. The camera faces the person — their screen is behind the camera, so it will not be visible. Judge only by gaze direction and attention cues.
+  const prompt = `You are a focus detector for a webcam-based study app. The camera faces the person — their screen is not visible because it is directly below the camera. Judge only by gaze direction.
 
-Score 0 (focused): eyes directed at the camera lens (meaning they are looking at their screen), sitting still, neutral or engaged expression.
-Score 1 (distracted): eyes clearly looking away to the side, down at a phone, closed, or the person has left the frame entirely.
+Score 0 (focused): eyes looking straight at the camera (screen is just below it), OR eyes looking downward toward a notebook, book, or desk. Both are normal focused behaviors.
+Score 1 (distracted): eyes clearly looking to the side, person is on their phone, person has left the frame, or eyes are closed with no sign of reading.
 
 Task context: the person is supposed to be working on ${task}.
 
