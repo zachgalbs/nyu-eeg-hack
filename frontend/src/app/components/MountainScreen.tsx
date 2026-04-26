@@ -336,8 +336,11 @@ export function MountainScreen() {
     if (animationActive) {
       setUiVisible(false);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    } else if (!hasCheckedIn || isPaused) {
+      // Restore UI when animation ends and session is paused or not yet started
+      setUiVisible(true);
     }
-  }, [snowballMode, bgMode, meetUpActive]);
+  }, [snowballMode, bgMode, meetUpActive, isPaused, hasCheckedIn]);
 
   async function captureAndCheck(): Promise<boolean> {
     const video = videoRef.current;
