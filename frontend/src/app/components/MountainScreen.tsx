@@ -932,8 +932,8 @@ export function MountainScreen() {
                     artReady ? "opacity-100" : "opacity-0"
                   }`}
                   style={{
-                    width: 200,
-                    height: 140,
+                    width: 260,
+                    height: 182,
                     boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
                   }}
                 >
