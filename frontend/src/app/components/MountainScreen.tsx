@@ -90,10 +90,42 @@ export function MountainScreen() {
   };
 
   const totalSeconds = Math.max(45, event.duration * 60);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [hasCheckedIn, setHasCheckedIn] = useState(false);
-  const [checkedInAt, setCheckedInAt] = useState<Date | null>(null);
+  const storageKey = `eeg_timer_${eventKey}`;
+
+  // Parse saved timer state once — used to restore on page refresh
+  const [savedTimer] = useState<{
+    checkedIn?: boolean;
+    checkedInAt?: string | null;
+    baseElapsed?: number;
+    resumedAt?: number | null;
+    isPaused?: boolean;
+  } | null>(() => {
+    try {
+      const raw = localStorage.getItem(`eeg_timer_${eventKey}`);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      // Discard completed sessions so the summit screen isn't re-triggered
+      if (data.baseElapsed != null && data.baseElapsed >= Math.max(45, (data.duration ?? event.duration) * 60)) {
+        localStorage.removeItem(`eeg_timer_${eventKey}`);
+        return null;
+      }
+      return data;
+    } catch { return null; }
+  });
+
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => {
+    if (!savedTimer?.checkedIn || savedTimer.baseElapsed == null) return 0;
+    const base = savedTimer.baseElapsed;
+    if (savedTimer.resumedAt != null && !savedTimer.isPaused) {
+      return Math.min(totalSeconds, Math.floor(base + (Date.now() - savedTimer.resumedAt) / 1000));
+    }
+    return Math.min(totalSeconds, Math.floor(base));
+  });
+  const [isPaused, setIsPaused] = useState(savedTimer?.isPaused ?? false);
+  const [hasCheckedIn, setHasCheckedIn] = useState(savedTimer?.checkedIn ?? false);
+  const [checkedInAt, setCheckedInAt] = useState<Date | null>(
+    savedTimer?.checkedInAt ? new Date(savedTimer.checkedInAt) : null
+  );
   const [progress, setProgress] = useState(0);
   const [focusScore, setFocusScore] = useState(97);
   const [lastCheck, setLastCheck] = useState<'verified' | 'distracted'>('verified');
@@ -106,6 +138,13 @@ export function MountainScreen() {
   const [buddyCommitment] = useState(() => getBuddyCommitment(eventKey));
   const summitSent = useRef(false);
   const elapsedSecondsRef = useRef(0);
+  // Wall-clock anchor for the timer — avoids drift caused by browser tab throttling
+  const resumedAtRef = useRef<number | null>(
+    savedTimer?.checkedIn && !savedTimer?.isPaused && savedTimer?.resumedAt != null
+      ? savedTimer.resumedAt
+      : null
+  );
+  const baseElapsedRef = useRef<number>(savedTimer?.baseElapsed ?? 0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -255,16 +294,62 @@ export function MountainScreen() {
   }, []);
 
   useEffect(() => {
-    if (isPaused || !hasCheckedIn) return;
-    const id = window.setInterval(() => {
-      setElapsedSeconds((prev) => {
-        const next = prev >= totalSeconds ? prev : prev + 1;
-        elapsedSecondsRef.current = next;
-        return next;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
+    if (!hasCheckedIn) return;
+
+    if (isPaused) {
+      // Accumulate elapsed time into the base when pausing
+      if (resumedAtRef.current !== null) {
+        baseElapsedRef.current += (Date.now() - resumedAtRef.current) / 1000;
+        resumedAtRef.current = null;
+      }
+      return;
+    }
+
+    // Set the wall-clock anchor on resume (or first check-in)
+    if (resumedAtRef.current === null) {
+      resumedAtRef.current = Date.now();
+    }
+
+    const getElapsed = () =>
+      Math.min(
+        totalSeconds,
+        Math.floor(baseElapsedRef.current + (Date.now() - resumedAtRef.current!) / 1000)
+      );
+
+    const tick = () => {
+      const elapsed = getElapsed();
+      setElapsedSeconds(elapsed);
+      elapsedSecondsRef.current = elapsed;
+    };
+
+    tick();
+    const id = window.setInterval(tick, 1000);
+
+    // Re-sync immediately when the user returns to the tab
+    const onVisible = () => { if (document.visibilityState === 'visible') tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [totalSeconds, isPaused, hasCheckedIn]);
+
+  // Persist timer state every second so a page refresh can resume seamlessly
+  useEffect(() => {
+    if (!hasCheckedIn) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({
+        checkedIn: true,
+        checkedInAt: checkedInAt?.toISOString() ?? null,
+        baseElapsed: baseElapsedRef.current,
+        resumedAt: resumedAtRef.current,
+        isPaused,
+      }));
+    } catch {}
+  // elapsedSeconds triggers this every second while the session is running
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, hasCheckedIn, checkedInAt, isPaused, elapsedSeconds]);
 
   useEffect(() => {
     setProgress(Math.min(100, (elapsedSeconds / totalSeconds) * 100));
@@ -278,6 +363,7 @@ export function MountainScreen() {
       !summitSent.current
     ) {
       summitSent.current = true;
+      localStorage.removeItem(storageKey);
       const completedMinutes = Math.max(
         1,
         Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
@@ -522,6 +608,7 @@ export function MountainScreen() {
       1,
       Math.round((elapsedSeconds / Math.max(1, totalSeconds)) * event.duration)
     );
+    localStorage.removeItem(storageKey);
     saveSessionOutcome({
       id: `${eventKey}-partial-${Date.now()}`,
       eventId: eventKey,
@@ -742,6 +829,8 @@ export function MountainScreen() {
                 <button
                   type="button"
                   onClick={() => {
+                    resumedAtRef.current = Date.now();
+                    baseElapsedRef.current = 0;
                     setHasCheckedIn(true);
                     setCheckedInAt(new Date());
                   }}
