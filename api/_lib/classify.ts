@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { sql } from './db';
 
 export type Classification = {
@@ -10,9 +10,9 @@ export function normalizeTitle(title: string): string {
   return title.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-const client = new Anthropic();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-const SYSTEM_PROMPT = `You classify calendar event titles for a study app.
+const PROMPT_INSTRUCTIONS = `You classify calendar event titles for a study app.
 
 For each title, decide:
 - isAcademic: true if it represents study, lectures, exams, problem sets,
@@ -24,12 +24,54 @@ For each title, decide:
 Group related titles under one subject — "Calc 1 lecture", "Calc review",
 and "Calc study w/ Sam" all share subject "Calculus".
 
-Return ONLY a JSON array, same order as input, with shape:
-[{"isAcademic": bool, "subject": string|null}]`;
+Return ONLY a JSON array, same length and order as input, shape:
+[{"isAcademic": bool, "subject": string|null}]
+No prose, no code fences.`;
 
 /**
- * Classify titles, using cache where possible. Misses are sent to Claude in
- * a single batch call and persisted to the cache.
+ * Cheap, deterministic first pass before we hit the LLM. Catches the
+ * obvious cases so the free-tier Gemini quota goes further.
+ */
+const ACADEMIC_KEYWORDS = [
+  'lecture', 'lect.', 'recitation', 'lab', 'seminar', 'discussion section',
+  'study', 'studying', 'review session', 'exam', 'midterm', 'final',
+  'quiz', 'problem set', 'pset', 'homework', 'hw ', 'office hours',
+  'oh ', 'o.h.', 'tutoring', 'tutor', 'class', 'reading', 'thesis',
+  'research', 'paper draft', 'essay',
+];
+const NON_ACADEMIC_KEYWORDS = [
+  'gym', 'workout', 'lift', 'run ', 'running', 'yoga', 'climbing',
+  'lunch', 'dinner', 'breakfast', 'coffee', 'brunch', 'meal',
+  'doctor', 'dentist', 'therapy', 'haircut', 'laundry', 'groceries',
+  'birthday', 'party', 'date', 'hang ', 'hangout', 'movie',
+  'standup', '1:1', 'one on one', 'sync', 'all hands', 'stand-up',
+];
+
+function heuristic(norm: string): Classification | null {
+  const padded = ` ${norm} `;
+  for (const kw of NON_ACADEMIC_KEYWORDS) {
+    if (padded.includes(` ${kw}`) || padded.includes(`${kw} `)) {
+      return { isAcademic: false, subject: null };
+    }
+  }
+  for (const kw of ACADEMIC_KEYWORDS) {
+    if (padded.includes(kw)) {
+      // Don't try to extract a subject heuristically — that's where the
+      // LLM (or future user override) earns its keep. Mark academic with
+      // null subject; subject will be filled in by the LLM call once a
+      // misclassified title is sent there. To keep things simple and
+      // ensure subjects flow through, return null here so this title
+      // still goes to the LLM. If you want to skip the LLM entirely,
+      // return { isAcademic: true, subject: null } instead.
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Classify titles, using cache where possible. Misses are sent to Gemini
+ * in a single batch call and persisted to the cache.
  */
 export async function classifyTitles(
   titles: string[],
@@ -58,6 +100,7 @@ export async function classifyTitles(
 
   const remaining = norms.filter((n) => !out.has(n));
 
+  // Shared classification cache.
   if (remaining.length > 0) {
     const placeholders = remaining.map((_, i) => `$${i + 1}`).join(',');
     const { rows: cached } = await sql.query(
@@ -74,29 +117,43 @@ export async function classifyTitles(
     }
   }
 
+  // Heuristic for the obvious non-academic cases — no LLM needed.
+  for (const norm of norms) {
+    if (out.has(norm)) continue;
+    const h = heuristic(norm);
+    if (h) {
+      out.set(norm, h);
+      sql.query(
+        `INSERT INTO event_classifications (title_norm, is_academic, subject, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (title_norm) DO UPDATE
+           SET is_academic = EXCLUDED.is_academic,
+               subject = EXCLUDED.subject,
+               updated_at = NOW()`,
+        [norm, h.isAcademic, h.subject],
+      ).catch((err) => console.error('classification cache write failed', err));
+    }
+  }
+
   const misses = norms.filter((n) => !out.has(n));
   if (misses.length === 0) return out;
 
-  // Batch-classify the misses with one Claude call.
+  // Batch-classify misses with one Gemini call. gemini-2.0-flash is on the
+  // free tier with generous quota — far more than the ~1 call/week-fetch
+  // we'll make once the cache is warm.
   let llmResults: Classification[] = [];
   try {
-    const msg = await client.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `Classify these titles in order:\n${JSON.stringify(misses)}`,
-        },
-      ],
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.0-flash',
+      generationConfig: { responseMimeType: 'application/json' },
     });
-    const raw = (msg.content[0] as { text: string }).text.trim();
+    const result = await model.generateContent(
+      `${PROMPT_INSTRUCTIONS}\n\nTitles to classify (in order):\n${JSON.stringify(misses)}`,
+    );
+    const raw = result.response.text().trim();
     const jsonStr = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
     llmResults = JSON.parse(jsonStr);
   } catch (err) {
-    // Classifier is best-effort — fall back to "not academic, no subject"
-    // rather than blocking the calendar fetch.
     console.error('classifyTitles llm failed', err);
     llmResults = misses.map(() => ({ isAcademic: false, subject: null }));
   }
@@ -110,15 +167,15 @@ export async function classifyTitles(
     };
     out.set(norm, cls);
 
-    // Persist (best-effort, don't block on it).
-    sql`
-      INSERT INTO event_classifications (title_norm, is_academic, subject, updated_at)
-      VALUES (${norm}, ${cls.isAcademic}, ${cls.subject}, NOW())
-      ON CONFLICT (title_norm) DO UPDATE
-        SET is_academic = EXCLUDED.is_academic,
-            subject = EXCLUDED.subject,
-            updated_at = NOW()
-    `.catch((err) => console.error('classification cache write failed', err));
+    sql.query(
+      `INSERT INTO event_classifications (title_norm, is_academic, subject, updated_at)
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (title_norm) DO UPDATE
+         SET is_academic = EXCLUDED.is_academic,
+             subject = EXCLUDED.subject,
+             updated_at = NOW()`,
+      [norm, cls.isAcademic, cls.subject],
+    ).catch((err) => console.error('classification cache write failed', err));
   }
 
   return out;
