@@ -11,23 +11,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const task = eventName ? `"${eventName}"` : 'their current task'
   const photoCount = imageBase64b ? 'two photos taken one second apart' : 'one photo'
-  const prompt = `You are a focus detector for a webcam-based study app. The camera faces the person — their screen is not visible because it is directly below the camera. You are given ${photoCount}.
+  const prompt = `You are a focus detector. You are given ${photoCount} from a webcam that faces the person directly. The person's screen is not visible — it is below the camera.
 
-Score 0 (focused): in AT LEAST ONE photo, eyes look straight at the camera (screen is just below it), OR eyes look downward toward a notebook, book, or desk. A closed eye in one photo is likely a blink — do not penalize it if the other photo shows focus.
-Score 1 (distracted): in ALL photos, eyes are clearly looking to the side, person is on their phone, person has left the frame, or eyes are closed with no sign of reading.
+YOUR RESPONSE MUST BE EXACTLY THIS FORMAT — nothing else:
+<number between 0 and 1> | <what you see in 8 words or less>
 
-Task context: the person is supposed to be working on ${task}.
+SCORING:
+0 = focused (eyes toward camera/screen area, or looking down at desk/notebook)
+1 = distracted (eyes clearly to the side, on phone, left the frame, or asleep)
 
-Reply with exactly this format: SCORE | REASON
-- SCORE: a number 0–1
-- REASON: ≤8 words describing exactly what you see
+Task context: working on ${task}
 
-Examples:
-0 | eyes on camera, looks focused
-0 | reading downward, likely notebook
-0.7 | eyes drifting right, possible distraction
-1 | looking at phone in hand
-1 | no person in frame`
+REQUIRED OUTPUT FORMAT (you MUST include the pipe character and reason):
+0 | eyes on camera
+0 | looking down at notebook
+0.8 | eyes drifting to the right
+1 | looking at phone
+1 | no person visible
+
+Your response (number | reason):`
 
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
@@ -42,14 +44,18 @@ Examples:
     const result = await model.generateContent([...imageParts, prompt])
 
     const raw = result.response.text().trim()
-    const pipeIdx = raw.indexOf('|')
-    const scorePart = pipeIdx >= 0 ? raw.slice(0, pipeIdx) : raw
-    const reason = pipeIdx >= 0 ? raw.slice(pipeIdx + 1).trim() : ''
-    const match = scorePart.match(/([01](?:\.\d+)?)/)
-    const parsed = match ? parseFloat(match[1]) : NaN
+    // Accept "SCORE | REASON" anywhere in the response (model sometimes adds preamble)
+    const pipeMatch = raw.match(/([01](?:\.\d+)?)\s*\|\s*(.+)/)
+    const reason = pipeMatch ? pipeMatch[2].trim() : ''
+    const scoreStr = pipeMatch ? pipeMatch[1] : raw
+    const bareMatch = !pipeMatch ? scoreStr.match(/([01](?:\.\d+)?)/) : null
+    const parsed = pipeMatch ? parseFloat(pipeMatch[1]) : (bareMatch ? parseFloat(bareMatch[1]) : NaN)
     if (isNaN(parsed)) {
       console.error('[check-focus] unparseable Gemini response:', JSON.stringify(raw))
       return res.status(422).json({ error: 'Unparseable Gemini response', raw })
+    }
+    if (!reason) {
+      console.warn('[check-focus] Gemini skipped reason, raw:', JSON.stringify(raw))
     }
     const score = Math.max(0, Math.min(1, parsed))
     const distracted = score > 0.5
