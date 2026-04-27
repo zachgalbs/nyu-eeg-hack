@@ -5,6 +5,7 @@ export interface FriendPresence {
   focusedTimeToday: number;
   altitude: number;
   status: "climbing" | "summited" | "idle";
+  lastSeenAt?: string | null;
   isUser?: boolean;
 }
 

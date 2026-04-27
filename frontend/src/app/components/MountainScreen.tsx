@@ -58,6 +58,25 @@ function estimateFriendFocus(seedMinutes: number) {
   return 72 + (seedMinutes % 24);
 }
 
+function formatLastSeen(iso: string | null | undefined): string {
+  if (!iso) return 'Never online';
+  const then = new Date(iso);
+  const now = new Date();
+  const diffMs = now.getTime() - then.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 2) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 6) return `${diffHours}h ago`;
+  const timeStr = then.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const thenDate = new Date(then.getFullYear(), then.getMonth(), then.getDate());
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const dayDiff = Math.round((todayDate.getTime() - thenDate.getTime()) / 86400000);
+  if (dayDiff === 0) return `today at ${timeStr}`;
+  if (dayDiff === 1) return `yesterday at ${timeStr}`;
+  return `${then.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} at ${timeStr}`;
+}
+
 export function MountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
@@ -184,6 +203,7 @@ export function MountainScreen() {
               focusedTimeToday: 0,
               altitude: 0,
               status: f.is_active ? 'climbing' : (f.last_summit ? 'summited' : 'idle'),
+              lastSeenAt: f.last_summit,
             }))
           );
         })
@@ -969,19 +989,15 @@ export function MountainScreen() {
                       </p>
                     </div>
                     <span
-                      className={`text-[11px] ${
+                      className={`shrink-0 text-right text-[11px] ${
                         friend.status === "climbing"
                           ? "text-moss"
-                          : friend.status === "summited"
-                            ? "text-terracotta"
-                            : "text-warm-gray"
+                          : "text-warm-gray"
                       }`}
                     >
                       {friend.status === "climbing"
-                        ? "Climbing"
-                        : friend.status === "summited"
-                          ? "Summited"
-                          : "Idle"}
+                        ? "Online now"
+                        : formatLastSeen(friend.lastSeenAt)}
                     </span>
                   </li>
                 ))}
