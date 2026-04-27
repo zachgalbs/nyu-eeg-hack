@@ -6,14 +6,15 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end()
 
-  const { imageBase64, eventName } = req.body
+  const { imageBase64, imageBase64b, eventName } = req.body
   if (!imageBase64) return res.status(400).json({ error: 'Missing imageBase64' })
 
   const task = eventName ? `"${eventName}"` : 'their current task'
-  const prompt = `You are a focus detector for a webcam-based study app. The camera faces the person — their screen is not visible because it is directly below the camera. Judge only by gaze direction.
+  const photoCount = imageBase64b ? 'two photos taken one second apart' : 'one photo'
+  const prompt = `You are a focus detector for a webcam-based study app. The camera faces the person — their screen is not visible because it is directly below the camera. You are given ${photoCount}.
 
-Score 0 (focused): eyes looking straight at the camera (screen is just below it), OR eyes looking downward toward a notebook, book, or desk. Both are normal focused behaviors.
-Score 1 (distracted): eyes clearly looking to the side, person is on their phone, person has left the frame, or eyes are closed with no sign of reading.
+Score 0 (focused): in AT LEAST ONE photo, eyes look straight at the camera (screen is just below it), OR eyes look downward toward a notebook, book, or desk. A closed eye in one photo is likely a blink — do not penalize it if the other photo shows focus.
+Score 1 (distracted): in ALL photos, eyes are clearly looking to the side, person is on their phone, person has left the frame, or eyes are closed with no sign of reading.
 
 Task context: the person is supposed to be working on ${task}.
 
@@ -22,15 +23,14 @@ Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: 'image/jpeg',
-        },
-      },
-      prompt,
-    ])
+    const imageParts: object[] = [
+      { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
+    ]
+    if (imageBase64b) {
+      imageParts.push({ inlineData: { data: imageBase64b, mimeType: 'image/jpeg' } })
+    }
+
+    const result = await model.generateContent([...imageParts, prompt])
 
     const raw = result.response.text().trim()
     const match = raw.match(/(?:^|\D)([01](?:\.\d+)?)/)
@@ -46,6 +46,7 @@ Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.
     console.log('[check-focus]', JSON.stringify({
       eventName: eventName ?? null,
       imageBytes: imageBase64.length,
+      imageBytes2: imageBase64b ? imageBase64b.length : null,
       rawGemini: raw,
       parsedScore: score,
       distracted,

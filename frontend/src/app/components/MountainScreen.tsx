@@ -356,16 +356,27 @@ export function MountainScreen() {
         video.addEventListener('loadeddata', onLoaded, { once: true });
       });
     }
-    canvas.width = video.videoWidth || 320;
-    canvas.height = video.videoHeight || 240;
-    canvas.getContext('2d')?.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-    setDebugImage(dataUrl);
-    const imageBase64 = dataUrl.split(',')[1];
+
+    const captureFrame = () => {
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+      canvas.getContext('2d')?.drawImage(video, 0, 0);
+      return canvas.toDataURL('image/jpeg', 0.7);
+    };
+
+    const dataUrl1 = captureFrame();
+    setDebugImage(dataUrl1);
+    const imageBase64 = dataUrl1.split(',')[1];
+
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 1000));
+
+    const dataUrl2 = captureFrame();
+    const imageBase64b = dataUrl2.split(',')[1];
+
     const res = await fetch('/api/check-focus', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64, eventName: event.name }),
+      body: JSON.stringify({ imageBase64, imageBase64b, eventName: event.name }),
     });
     if (!res.ok) throw new Error(`API error ${res.status}`);
     const data = await res.json();
