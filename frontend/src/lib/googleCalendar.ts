@@ -1,57 +1,71 @@
 import { startOfWeek, addDays, startOfDay, endOfDay } from 'date-fns';
 import type { CalendarEvent } from '../data/calendarFixtures';
 
-interface GoogleEvent {
+interface ApiEvent {
   id: string;
-  summary?: string;
-  start: { dateTime?: string; date?: string };
-  end: { dateTime?: string; date?: string };
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  isAcademic: boolean;
+  subject: string | null;
 }
 
 export class AuthError extends Error {}
 
+/**
+ * Fetches events for the ISO week containing `weekContaining` from our
+ * server-side proxy. The proxy keeps the Google access token server-side
+ * and refreshes it automatically — clients never see/store it.
+ */
 export async function fetchMyEventsThisWeek(
-  token: string,
   weekContaining: Date,
 ): Promise<CalendarEvent[]> {
   const monday = startOfWeek(startOfDay(weekContaining), { weekStartsOn: 1 });
   const sunday = addDays(monday, 7);
 
   const params = new URLSearchParams({
-    timeMin: monday.toISOString(),
-    timeMax: sunday.toISOString(),
-    singleEvents: 'true',
-    orderBy: 'startTime',
-    maxResults: '50',
+    from: monday.toISOString(),
+    to: sunday.toISOString(),
   });
 
-  const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/primary/events?${params}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
+  const res = await fetch(`/api/calendar/events?${params}`, {
+    credentials: 'same-origin',
+  });
 
-  if (res.status === 401) throw new AuthError('Token expired');
-  if (!res.ok) throw new Error(`Calendar API error ${res.status}`);
+  if (res.status === 401) throw new AuthError('Reconnect Google Calendar');
+  if (!res.ok) throw new Error(`Calendar proxy error ${res.status}`);
 
-  const data = await res.json();
-  const items: GoogleEvent[] = data.items ?? [];
+  const data = (await res.json()) as { events: ApiEvent[] };
 
-  return items.map((e): CalendarEvent => {
-    const allDay = !e.start.dateTime;
-    const start = allDay
-      ? startOfDay(new Date(e.start.date!))
-      : new Date(e.start.dateTime!);
-    const end = allDay
-      ? endOfDay(new Date(e.start.date!))
-      : new Date(e.end.dateTime!);
+  return data.events.map((e): CalendarEvent => {
+    const start = e.allDay ? startOfDay(new Date(e.start)) : new Date(e.start);
+    const end = e.allDay ? endOfDay(new Date(e.start)) : new Date(e.end);
     return {
       id: e.id,
-      title: e.summary ?? '(no title)',
+      title: e.title,
       start,
       end,
       ownerId: 'me' as const,
       ownerName: 'You',
-      allDay,
+      allDay: e.allDay,
+      isAcademic: e.isAcademic,
+      subject: e.subject,
     };
   });
+}
+
+/** Override classification for a given event title. */
+export async function setClassificationOverride(
+  title: string,
+  isAcademic: boolean,
+  subject: string | null = null,
+): Promise<void> {
+  const res = await fetch('/api/calendar/override', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ title, isAcademic, subject }),
+  });
+  if (!res.ok) throw new Error(`Override failed ${res.status}`);
 }

@@ -33,14 +33,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   })
   const user = await userRes.json()
 
-  // Upsert user into DB
+  const accessExpiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000)
+
+  // Persist user + refresh token. Google only returns a refresh_token on
+  // first consent for a given client/user — guard against overwriting an
+  // existing one with NULL on subsequent re-consents.
   await sql`
-    INSERT INTO users (user_id, name, email, avatar_url)
-    VALUES (${user.id}, ${user.name}, ${user.email}, ${user.picture ?? null})
+    INSERT INTO users (user_id, name, email, avatar_url, google_refresh_token, google_token_expires_at)
+    VALUES (
+      ${user.id},
+      ${user.name},
+      ${user.email},
+      ${user.picture ?? null},
+      ${tokens.refresh_token ?? null},
+      ${accessExpiresAt.toISOString()}
+    )
     ON CONFLICT (user_id) DO UPDATE
       SET name = EXCLUDED.name,
           email = EXCLUDED.email,
-          avatar_url = EXCLUDED.avatar_url
+          avatar_url = EXCLUDED.avatar_url,
+          google_refresh_token = COALESCE(EXCLUDED.google_refresh_token, users.google_refresh_token),
+          google_token_expires_at = EXCLUDED.google_token_expires_at
   `
 
   // Accept pending friendship if coming from an invite link
@@ -58,12 +71,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `
   }
 
-  const tokenMaxAge = 3600          // google_token expires with the OAuth token
-  const sessionMaxAge = 60 * 60 * 24 * 30  // user_id/name persist for 30 days
+  // Long-lived session cookies. The access token now lives server-side and
+  // is refreshed automatically — no more 1-hour client-side expiry.
+  const sessionMaxAge = 60 * 60 * 24 * 30
   res.setHeader('Set-Cookie', [
-    `google_token=${tokens.access_token}; Path=/; Max-Age=${tokenMaxAge}; SameSite=Lax`,
     `user_id=${user.id}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
     `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
+    // Clear the legacy short-lived access-token cookie if present.
+    `google_token=; Path=/; Max-Age=0; SameSite=Lax`,
   ])
 
   // Redirect to friends page if coming from invite, otherwise home

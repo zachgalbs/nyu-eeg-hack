@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router';
-import { getGoogleToken } from '../../lib/auth';
+import { isSignedIn } from '../../lib/auth';
 
 export function JoinScreen() {
   const [params] = useSearchParams();
@@ -9,7 +9,7 @@ export function JoinScreen() {
   const [status, setStatus] = useState<'idle' | 'accepting' | 'done' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
-  const isLoggedIn = !!getGoogleToken();
+  const isLoggedIn = isSignedIn();
 
   useEffect(() => {
     if (!token || !isLoggedIn || status !== 'idle') return;

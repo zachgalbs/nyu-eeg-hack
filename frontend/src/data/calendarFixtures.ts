@@ -16,6 +16,10 @@ export type CalendarEvent = {
   ownerId: 'me' | string;
   ownerName: string;
   allDay?: boolean;
+  /** True when classified as study/lecture/exam-prep. Undefined = not yet classified. */
+  isAcademic?: boolean;
+  /** Canonical subject (e.g. "Calculus") for grouping. Null/undefined for non-academic. */
+  subject?: string | null;
 };
 
 /** Demo friends' schedules for the ISO week that contains `weekContaining`. */
