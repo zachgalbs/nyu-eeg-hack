@@ -677,7 +677,7 @@ export function MountainScreen() {
         />
 
         <div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background-solid/25 via-background-solid/40 to-background-solid/70"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background-solid/10 via-background-solid/20 to-background-solid/55"
           aria-hidden
         />
 
