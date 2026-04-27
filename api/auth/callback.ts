@@ -1,9 +1,36 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { sql } from '../_lib/db'
+import { parseCookie } from '../_lib/cookies'
+import { encryptSecret } from '../_lib/crypto'
+import {
+  createSession,
+  buildSessionCookie,
+  SESSION_TTL_SECONDS,
+} from '../_lib/session'
+
+const CSRF_COOKIE = 'oauth_csrf'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { code, state } = req.query
   if (!code) return res.status(400).json({ error: 'Missing code' })
+
+  // CSRF check — the nonce in `state` must match the nonce in the
+  // short-lived cookie set during /api/auth/login.
+  const expectedCsrf = parseCookie(req, CSRF_COOKIE)
+  let csrfFromState: string | null = null
+  let inviteToken: string | null = null
+  try {
+    const decoded = JSON.parse(
+      Buffer.from(state as string, 'base64url').toString('utf8'),
+    ) as { csrf?: string; invite?: string | null }
+    csrfFromState = decoded.csrf ?? null
+    inviteToken = decoded.invite ?? null
+  } catch {
+    return res.status(400).json({ error: 'Malformed OAuth state' })
+  }
+  if (!expectedCsrf || !csrfFromState || expectedCsrf !== csrfFromState) {
+    return res.status(400).json({ error: 'OAuth CSRF check failed' })
+  }
 
   const base = process.env.VERCEL_PROJECT_PRODUCTION_URL
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
@@ -35,9 +62,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const accessExpiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000)
 
-  // Persist user + refresh token. Google only returns a refresh_token on
-  // first consent for a given client/user — guard against overwriting an
-  // existing one with NULL on subsequent re-consents.
+  // Encrypt the refresh token before persisting. A read-only DB compromise
+  // no longer hands the attacker every user's calendar.
+  const encryptedRefresh = tokens.refresh_token
+    ? encryptSecret(tokens.refresh_token)
+    : null
+
   await sql`
     INSERT INTO users (user_id, name, email, avatar_url, google_refresh_token, google_token_expires_at)
     VALUES (
@@ -45,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ${user.name},
       ${user.email},
       ${user.picture ?? null},
-      ${tokens.refresh_token ?? null},
+      ${encryptedRefresh},
       ${accessExpiresAt.toISOString()}
     )
     ON CONFLICT (user_id) DO UPDATE
@@ -56,11 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           google_token_expires_at = EXCLUDED.google_token_expires_at
   `
 
-  // Accept pending friendship if coming from an invite link
-  const inviteToken = typeof state === 'string' && state.startsWith('invite:')
-    ? state.slice(7)
-    : null
-
+  // Auto-accept friendship if signed in via an invite link.
   if (inviteToken) {
     await sql`
       UPDATE friendships
@@ -71,16 +97,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `
   }
 
-  // Long-lived session cookies. The access token now lives server-side and
-  // is refreshed automatically — no more 1-hour client-side expiry.
-  const sessionMaxAge = 60 * 60 * 24 * 30
+  // Mint an opaque server-side session. The cookie holds only the random
+  // session_id; user_id lives in auth_sessions. Editing the cookie just
+  // invalidates the session — it does NOT let an attacker pose as anyone.
+  const sessionId = await createSession(user.id, {
+    userAgent: req.headers['user-agent'] ?? null,
+    ip:
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
+      req.socket?.remoteAddress ??
+      null,
+  })
+
   res.setHeader('Set-Cookie', [
-    `user_id=${user.id}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
-    `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${sessionMaxAge}; SameSite=Lax`,
-    // Clear the legacy short-lived access-token cookie if present.
+    buildSessionCookie(sessionId, SESSION_TTL_SECONDS),
+    // user_name is JS-readable for the frontend's display logic. Secure +
+    // SameSite=Lax. NOT HttpOnly because the client reads it. Non-sensitive.
+    `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${SESSION_TTL_SECONDS}; Secure; SameSite=Lax`,
+    // Clear legacy cookies from older sessions.
+    `user_id=; Path=/; Max-Age=0; SameSite=Lax`,
     `google_token=; Path=/; Max-Age=0; SameSite=Lax`,
+    `${CSRF_COOKIE}=; Path=/api/auth; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
   ])
 
-  // Redirect to friends page if coming from invite, otherwise home
   res.redirect(inviteToken ? '/friends' : '/')
 }

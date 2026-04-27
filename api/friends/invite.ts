@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import { sql } from '../_lib/db';
-import { parseCookie } from '../_lib/cookies';
+import { getUserIdFromRequest } from '../_lib/session';
 
 function getBase(req: VercelRequest) {
   return process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -14,7 +14,7 @@ function getBase(req: VercelRequest) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = parseCookie(req, 'user_id');
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: 'Not logged in' });
 
   try {
