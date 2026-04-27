@@ -453,10 +453,6 @@ export function MountainScreen() {
   }, [isPaused, hasCheckedIn, event.name]);
 
   const blockMinutes = Math.floor(elapsedSeconds / 60);
-  const blockLabel =
-    blockMinutes >= 60
-      ? `${Math.floor(blockMinutes / 60)}h ${blockMinutes % 60}m this block`
-      : `${blockMinutes}m this block`;
 
   const friendPresence = useMemo(
     () => [...realFriends].sort((a, b) => {
@@ -720,16 +716,16 @@ export function MountainScreen() {
               >
                 {event.name}
               </h2>
-              <div
-                className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border pt-2 text-muted"
-                style={{
-                  fontSize: "13px",
-                  fontFamily: "var(--font-mono)",
-                }}
-              >
-                <span className="text-foreground/90">
-                  {hasCheckedIn ? blockLabel : "check in to start timer"}
-                </span>
+              <div className="border-t border-border pt-2">
+                <p className="tabular-nums text-xs font-medium text-warm-gray">
+                  {hasCheckedIn ? `${blockMinutes}m / ${event.duration}m` : "check in to start"}
+                </p>
+                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-border">
+                  <div
+                    className="h-full rounded-full bg-moss transition-[width] duration-1000 ease-linear"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
               </div>
               {!hasCheckedIn ? (
                 <button
