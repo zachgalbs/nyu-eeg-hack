@@ -152,7 +152,7 @@ export function MountainScreen() {
   const [debugImage, setDebugImage] = useState<string | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   const [debugError, setDebugError] = useState<string | null>(null);
-  const [debugScore, setDebugScore] = useState<{ score: number; raw: string } | null>(null);
+  const [debugScore, setDebugScore] = useState<{ score: number; raw: string; reason: string } | null>(null);
   const [showGeminiInfo, setShowGeminiInfo] = useState(false);
   const [artReady, setArtReady] = useState(false);
   const [throwTargetId, setThrowTargetId] = useState<string | null>(null);
@@ -492,7 +492,7 @@ export function MountainScreen() {
     if (typeof data.score !== 'number') {
       throw new Error('Unexpected response from focus check API');
     }
-    setDebugScore({ score: data.score, raw: typeof data.raw === 'string' ? data.raw : '' });
+    setDebugScore({ score: data.score, raw: typeof data.raw === 'string' ? data.raw : '', reason: typeof data.reason === 'string' ? data.reason : '' });
     return data.score > 0.5;
   }
 
@@ -971,6 +971,15 @@ export function MountainScreen() {
                         </button>
                       </div>
 
+                      {debugScore?.reason && lastCheck !== "error" && (
+                        <p
+                          className={`mb-1 text-[11px] italic ${lastCheck === "verified" ? "text-moss/80" : "text-coral/80"}`}
+                          style={{ fontFamily: "var(--font-mono)" }}
+                        >
+                          "{debugScore.reason}"
+                        </p>
+                      )}
+
                       {lastCheck === "error" && debugError && (
                         <p className="mb-1 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-400">
                           {debugError}
@@ -996,6 +1005,12 @@ export function MountainScreen() {
                                   {debugScore.score > 0.5 ? "distracted" : "focused"}
                                 </span>
                               </div>
+                              {debugScore.reason && (
+                                <div className="mb-1">
+                                  <p className="mb-0.5 text-warm-gray">Reason:</p>
+                                  <p className="font-mono text-foreground">"{debugScore.reason}"</p>
+                                </div>
+                              )}
                               {debugScore.raw && (
                                 <div>
                                   <p className="mb-0.5 text-warm-gray">Raw response:</p>

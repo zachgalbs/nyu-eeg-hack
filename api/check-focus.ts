@@ -18,7 +18,16 @@ Score 1 (distracted): in ALL photos, eyes are clearly looking to the side, perso
 
 Task context: the person is supposed to be working on ${task}.
 
-Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.8, 1`
+Reply with exactly this format: SCORE | REASON
+- SCORE: a number 0–1
+- REASON: ≤8 words describing exactly what you see
+
+Examples:
+0 | eyes on camera, looks focused
+0 | reading downward, likely notebook
+0.7 | eyes drifting right, possible distraction
+1 | looking at phone in hand
+1 | no person in frame`
 
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
@@ -33,7 +42,10 @@ Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.
     const result = await model.generateContent([...imageParts, prompt])
 
     const raw = result.response.text().trim()
-    const match = raw.match(/(?:^|\D)([01](?:\.\d+)?)/)
+    const pipeIdx = raw.indexOf('|')
+    const scorePart = pipeIdx >= 0 ? raw.slice(0, pipeIdx) : raw
+    const reason = pipeIdx >= 0 ? raw.slice(pipeIdx + 1).trim() : ''
+    const match = scorePart.match(/([01](?:\.\d+)?)/)
     const parsed = match ? parseFloat(match[1]) : NaN
     if (isNaN(parsed)) {
       console.error('[check-focus] unparseable Gemini response:', JSON.stringify(raw))
@@ -53,6 +65,7 @@ Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.
       imageBytes2: imageBase64b ? imageBase64b.length : null,
       rawGemini: raw,
       parsedScore: score,
+      reason,
       distracted,
       promptTokens: usage?.promptTokenCount,
       outputTokens: usage?.candidatesTokenCount,
@@ -63,6 +76,7 @@ Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.
     return res.json({
       score,
       raw,
+      reason,
       distracted,
       ...(verbose && {
         _geminiMeta: {
