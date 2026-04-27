@@ -128,9 +128,9 @@ export function MountainScreen() {
   );
   const [progress, setProgress] = useState(0);
   const [focusScore, setFocusScore] = useState(97);
-  const [lastCheck, setLastCheck] = useState<'verified' | 'distracted'>('verified');
+  const [lastCheck, setLastCheck] = useState<'verified' | 'distracted' | 'error'>('verified');
   const [showToast, setShowToast] = useState(false);
-  const [toastType, setToastType] = useState<'verified' | 'distracted'>('verified');
+  const [toastType, setToastType] = useState<'verified' | 'distracted' | 'error'>('verified');
   const [distractedCount, setDistractionCount] = useState(0);
   const [distractedChecksTotal, setDistractedChecksTotal] = useState(0);
   const [activeRoast, setActiveRoast] = useState<ActiveRoast | null>(null);
@@ -484,11 +484,16 @@ export function MountainScreen() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageBase64, imageBase64b, eventName: event.name }),
     });
-    if (!res.ok) throw new Error(`API error ${res.status}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? `API error ${res.status}`);
+    }
     const data = await res.json();
-    const score = typeof data.score === 'number' ? data.score : 0;
-    setDebugScore({ score, raw: typeof data.raw === 'string' ? data.raw : '' });
-    return score > 0.5;
+    if (typeof data.score !== 'number') {
+      throw new Error('Unexpected response from focus check API');
+    }
+    setDebugScore({ score: data.score, raw: typeof data.raw === 'string' ? data.raw : '' });
+    return data.score > 0.5;
   }
 
   useEffect(() => {
@@ -525,7 +530,14 @@ export function MountainScreen() {
         }
 
         window.setTimeout(() => setShowToast(false), 2500);
-      }).catch(() => {});
+      }).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Focus check failed';
+        setDebugError(msg);
+        setLastCheck('error');
+        setToastType('error');
+        setShowToast(true);
+        window.setTimeout(() => setShowToast(false), 5000);
+      });
     };
 
     // Check immediately on check-in, then at a random interval between 2-3 minutes
@@ -938,10 +950,16 @@ export function MountainScreen() {
                     <div className="min-w-0 flex-1">
                       <div className="mb-1 flex items-center gap-1.5">
                         <span
-                          className={`font-semibold ${lastCheck === "verified" ? "text-moss" : "text-coral"}`}
+                          className={`font-semibold ${
+                            lastCheck === "verified" ? "text-moss"
+                            : lastCheck === "error" ? "text-amber-400"
+                            : "text-coral"
+                          }`}
                           style={{ fontSize: "24px", fontWeight: 600 }}
                         >
-                          {lastCheck === "verified" ? "Focused" : "Not focused"}
+                          {lastCheck === "verified" ? "Focused"
+                           : lastCheck === "error" ? "⚠ Check failed"
+                           : "Not focused"}
                         </span>
                         <button
                           type="button"
@@ -952,6 +970,12 @@ export function MountainScreen() {
                           i
                         </button>
                       </div>
+
+                      {lastCheck === "error" && debugError && (
+                        <p className="mb-1 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2 py-1 text-[11px] font-medium text-amber-400">
+                          {debugError}
+                        </p>
+                      )}
 
                       {showGeminiInfo && (
                         <div className="mb-2 rounded-xl border border-border bg-background-solid/80 p-3 text-[11px]">
@@ -1002,7 +1026,12 @@ export function MountainScreen() {
                             setShowToast(true);
                             window.setTimeout(() => setShowToast(false), 2500);
                           } catch (err) {
-                            setDebugError(err instanceof Error ? err.message : 'Check failed');
+                            const msg = err instanceof Error ? err.message : 'Check failed';
+                            setDebugError(msg);
+                            setLastCheck('error');
+                            setToastType('error');
+                            setShowToast(true);
+                            window.setTimeout(() => setShowToast(false), 5000);
                           } finally {
                             setIsChecking(false);
                           }

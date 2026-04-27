@@ -35,7 +35,11 @@ Reply with a single number between 0 and 1. Do not explain. Examples: 0, 0.2, 0.
     const raw = result.response.text().trim()
     const match = raw.match(/(?:^|\D)([01](?:\.\d+)?)/)
     const parsed = match ? parseFloat(match[1]) : NaN
-    const score = isNaN(parsed) ? 0 : Math.max(0, Math.min(1, parsed))
+    if (isNaN(parsed)) {
+      console.error('[check-focus] unparseable Gemini response:', JSON.stringify(raw))
+      return res.status(422).json({ error: 'Unparseable Gemini response', raw })
+    }
+    const score = Math.max(0, Math.min(1, parsed))
     const distracted = score > 0.5
 
     const usage = result.response.usageMetadata
