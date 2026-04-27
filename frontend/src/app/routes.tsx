@@ -8,10 +8,12 @@ import { SummitScreen } from "./components/SummitScreen";
 import { FriendsScreen } from "./components/FriendsScreen";
 import { ProfileScreen } from "./components/ProfileScreen";
 import { JoinScreen } from "./components/JoinScreen";
+import { PrivacyPolicyScreen } from "./components/PrivacyPolicyScreen";
 
 export const router = createBrowserRouter([
   { path: "/welcome", Component: WelcomeScreen },
   { path: "/join", Component: JoinScreen },
+  { path: "/privacy", Component: PrivacyPolicyScreen },
   {
     path: "/",
     Component: Root,

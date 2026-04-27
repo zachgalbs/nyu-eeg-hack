@@ -100,6 +100,10 @@ export function ProfileScreen() {
     window.open("https://github.com/candpixie/nyu-eeg-hack-1/issues/new", "_blank", "noopener");
   };
 
+  const openPrivacyPolicy = () => {
+    navigate("/privacy");
+  };
+
   const signOut = () => {
     const confirmed = window.confirm("Sign out of CompCal on this device?");
     if (!confirmed) return;
@@ -213,6 +217,13 @@ export function ProfileScreen() {
             label="Notifications"
             hint="Focus checks, friend activity"
             onClick={manageNotifications}
+          />
+          <div className="mx-3 h-px bg-border" />
+          <SettingsRow
+            icon={<ShieldCheck className="h-4 w-4" strokeWidth={2} />}
+            label="Privacy policy"
+            hint="How we handle account, calendar, and webcam data"
+            onClick={openPrivacyPolicy}
           />
           <div className="mx-3 h-px bg-border" />
           <button
