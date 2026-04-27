@@ -695,32 +695,43 @@ export function MountainScreen() {
                   Paused
                 </div>
               ) : null}
-              <div
-                className={`mb-1 text-foreground tabular-nums tracking-tight ${isPaused ? "text-warm-gray" : ""}`}
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "clamp(1.75rem, 5.2vw, 2.35rem)",
-                  fontWeight: 600,
-                  lineHeight: 1.05,
-                }}
-              >
-                {formatHMS(elapsedSeconds)}
+              <div className="mb-1 flex items-baseline gap-2">
+                <span
+                  className={`tabular-nums tracking-tight ${isPaused ? "text-warm-gray" : "text-foreground"}`}
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "clamp(1.75rem, 5.2vw, 2.35rem)",
+                    fontWeight: 700,
+                    lineHeight: 1.05,
+                  }}
+                >
+                  {hasCheckedIn ? `${blockMinutes}m` : "0m"}
+                </span>
+                <span
+                  className="tabular-nums text-warm-gray"
+                  style={{ fontFamily: "var(--font-mono)", fontSize: "clamp(0.85rem, 2.5vw, 1.05rem)", fontWeight: 400 }}
+                >
+                  / {event.duration}m
+                </span>
               </div>
               <h2
-                className="mb-3 truncate text-foreground"
+                className="mb-1 truncate text-foreground/70"
                 style={{
                   fontFamily: "var(--font-serif)",
-                  fontSize: "20px",
+                  fontSize: "15px",
                   fontWeight: 400,
                 }}
               >
                 {event.name}
               </h2>
+              <div
+                className={`mb-2 tabular-nums text-[11px] ${isPaused ? "text-warm-gray" : "text-warm-gray/70"}`}
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                {formatHMS(elapsedSeconds)}
+              </div>
               <div className="border-t border-border pt-2">
-                <p className="tabular-nums text-xs font-medium text-warm-gray">
-                  {hasCheckedIn ? `${blockMinutes}m / ${event.duration}m` : "check in to start"}
-                </p>
-                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-border">
+                <div className="h-1 w-full overflow-hidden rounded-full bg-border">
                   <div
                     className="h-full rounded-full bg-moss transition-[width] duration-1000 ease-linear"
                     style={{ width: `${progress}%` }}
