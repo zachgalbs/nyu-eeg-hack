@@ -107,6 +107,12 @@ export function WelcomeScreen() {
           animate={{ opacity: showCta ? 1 : 0, y: showCta ? 0 : 12 }}
           transition={{ duration: 0.35, ease: EASE_OUT }}
         >
+          <p
+            className="text-warm-gray mb-1 tracking-widest uppercase"
+            style={{ fontSize: '11px', fontFamily: 'var(--font-sans)' }}
+          >
+            Calenduel
+          </p>
           <h1
             className="text-ink mb-3"
             style={{
@@ -130,6 +136,13 @@ export function WelcomeScreen() {
           >
             Begin
           </button>
+          <a
+            href="/privacy"
+            className="mt-6 block text-warm-gray transition-colors hover:text-ink"
+            style={{ fontSize: '11px', fontFamily: 'var(--font-sans)' }}
+          >
+            Privacy Policy
+          </a>
         </motion.div>
       </div>
     </div>
