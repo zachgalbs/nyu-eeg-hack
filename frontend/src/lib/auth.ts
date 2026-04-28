@@ -5,7 +5,10 @@
  */
 
 export function isSignedIn(): boolean {
-  return /(?:^|;\s*)user_id=/.test(document.cookie);
+  // The session_id cookie is HttpOnly and unreadable from JS, so we infer
+  // sign-in state from user_name (set alongside session_id at OAuth callback
+  // and cleared together at logout). Non-sensitive: name only, no auth power.
+  return /(?:^|;\s*)user_name=/.test(document.cookie);
 }
 
 export function getUserName(): string | null {

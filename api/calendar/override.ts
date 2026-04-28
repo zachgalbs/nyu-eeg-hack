@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { parseCookie } from '../_lib/cookies';
+import { getUserIdFromRequest } from '../_lib/session';
 import { normalizeTitle } from '../_lib/classify';
 
 /**
@@ -12,7 +12,7 @@ import { normalizeTitle } from '../_lib/classify';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = parseCookie(req, 'user_id');
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: 'Not signed in' });
 
   const { title, isAcademic, subject } = req.body ?? {};

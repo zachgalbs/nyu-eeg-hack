@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
-import { getUserIdFromCookies } from '../_lib/cookies';
+import { getUserIdFromRequest } from '../_lib/session';
 
 async function ensureRoastTable() {
   await sql`
@@ -22,7 +22,7 @@ async function ensureRoastTable() {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const userId = getUserIdFromCookies(req.headers.cookie);
+  const userId = await getUserIdFromRequest(req);
   if (!userId) return res.status(401).json({ error: 'Authentication required' });
 
   const limit = Math.min(25, Math.max(1, Number(req.query.limit || 10)));

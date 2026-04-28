@@ -1,4 +1,5 @@
 import { sql } from './db';
+import { decryptSecret } from './crypto';
 
 /**
  * Returns a valid Google access token for the user, refreshing it via the
@@ -33,7 +34,14 @@ export async function getValidAccessToken(userId: string): Promise<string> {
   if (rows.length === 0 || !rows[0].google_refresh_token) {
     throw new TokenRefreshError('No refresh token on file — user must reconnect');
   }
-  const refreshToken = rows[0].google_refresh_token as string;
+  let refreshToken: string;
+  try {
+    refreshToken = decryptSecret(rows[0].google_refresh_token as string);
+  } catch (err) {
+    // Bad ciphertext or wrong key — treat as if there's no refresh token.
+    console.error('refresh token decrypt failed', err);
+    throw new TokenRefreshError('Refresh token unreadable — user must reconnect');
+  }
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',

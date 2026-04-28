@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router";
-import { ChevronRight, Bell, UserPen, HelpCircle, LogOut, ShieldCheck } from "lucide-react";
+import { ChevronRight, Bell, UserPen, HelpCircle, LogOut, ShieldCheck, Flame } from "lucide-react";
 import { addDays, format, startOfDay, startOfWeek } from "date-fns";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { getPrefs, getWeeklyCommitmentSummary, updatePrefs } from "../../lib/compcal-state";
@@ -53,6 +53,34 @@ export function ProfileScreen() {
     }
   });
   const weekly = useMemo(() => getWeeklyCommitmentSummary(), []);
+  const [allowRoasts, setAllowRoasts] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/profile/preferences', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data && typeof data.allowRoasts === 'boolean') {
+          setAllowRoasts(data.allowRoasts);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleAllowRoasts = async () => {
+    if (allowRoasts === null) return;
+    const next = !allowRoasts;
+    setAllowRoasts(next);
+    try {
+      await fetch('/api/profile/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ allowRoasts: next }),
+      });
+    } catch {
+      setAllowRoasts(!next);
+    }
+  };
   const bars = weekly.points.length ? weekly.points : [18, 24, 28, 42, 36, 54, 65];
   const weekView = useMemo(() => {
     const today = startOfDay(new Date());
@@ -104,9 +132,15 @@ export function ProfileScreen() {
     navigate("/privacy");
   };
 
-  const signOut = () => {
+  const signOut = async () => {
     const confirmed = window.confirm("Sign out of CompCal on this device?");
     if (!confirmed) return;
+    // Tell the server to delete the auth_sessions row and clear cookies.
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+    } catch {
+      /* network failure — still clear local state */
+    }
     try {
       const keysToClear: string[] = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -225,6 +259,34 @@ export function ProfileScreen() {
             hint="How we handle account, calendar, and webcam data"
             onClick={openPrivacyPolicy}
           />
+          <div className="mx-3 h-px bg-border" />
+          <button
+            type="button"
+            onClick={toggleAllowRoasts}
+            disabled={allowRoasts === null}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-foreground/5 active:bg-foreground/10 disabled:opacity-60"
+          >
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-foreground/8 text-terracotta">
+              <Flame className="h-4 w-4" strokeWidth={2} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] text-ink">Allow roasts from friends</span>
+              <span className="mt-0.5 block text-xs text-warm-gray">
+                When off, friends can't roast you. You can still roast them.
+              </span>
+            </span>
+            <span
+              className={`rounded-full px-2 py-1 text-[11px] ${
+                allowRoasts === null
+                  ? 'bg-background-solid/70 text-warm-gray'
+                  : allowRoasts
+                  ? 'bg-moss/20 text-moss'
+                  : 'bg-coral/15 text-coral'
+              }`}
+            >
+              {allowRoasts === null ? '…' : allowRoasts ? 'On' : 'Off'}
+            </span>
+          </button>
           <div className="mx-3 h-px bg-border" />
           <button
             type="button"
