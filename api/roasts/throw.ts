@@ -50,6 +50,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Not friends with target user' });
   }
 
+  // FS-9: per-user roast opt-out. Default true preserves existing behaviour;
+  // anyone who toggles allow_roasts=false in their profile cannot be roasted.
+  const optCheck = await sql`
+    SELECT allow_roasts FROM users WHERE user_id = ${body.toUserId} LIMIT 1
+  `;
+  if (optCheck.rowCount === 0 || optCheck.rows[0].allow_roasts === false) {
+    return res.status(403).json({ error: 'Recipient does not accept roasts' });
+  }
+
   // Authenticate the display names from the DB. The client used to be able
   // to set arbitrary `fromName` / `toName` in the body — that's spoofable.
   const namesQuery = await sql`

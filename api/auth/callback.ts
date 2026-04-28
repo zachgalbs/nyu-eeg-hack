@@ -86,14 +86,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           google_token_expires_at = EXCLUDED.google_token_expires_at
   `
 
-  // Auto-accept friendship if signed in via an invite link.
+  // Mark the invite as claimed (NOT accepted): the inviter still has to
+  // confirm via /api/friends/respond. This closes the "anyone with a stale
+  // link is automatically a friend" hole. Expired tokens are ignored.
   if (inviteToken) {
     await sql`
       UPDATE friendships
-      SET status = 'accepted', invitee_id = ${user.id}, accepted_at = NOW()
+      SET status = 'claimed', invitee_id = ${user.id}, claimed_at = NOW()
       WHERE invite_token = ${inviteToken}
         AND status = 'pending'
         AND inviter_id != ${user.id}
+        AND (invite_expires_at IS NULL OR invite_expires_at > NOW())
     `
   }
 
