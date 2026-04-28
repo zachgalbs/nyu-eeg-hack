@@ -1,4 +1,4 @@
-# CompCal
+# Calenduel
 
 Turn your calendar commitment into a mountain your friends can see.
 
@@ -8,11 +8,11 @@ Built for NYU EEG x Vercel Hackathon (Educational + Social Good).
 
 Students usually know what they are supposed to study. They have calendar blocks for it. The hard part is follow-through.
 
-CompCal closes that intention-action gap with one loop:
+Calenduel closes that intention-action gap with one loop:
 
 `Plan it -> Check in -> Climb -> Finish with visible outcomes`
 
-Instead of treating productivity as private self-report, CompCal makes progress social and concrete through a shared mountain metaphor.
+Instead of treating productivity as private self-report, Calenduel makes progress social and concrete through a shared mountain metaphor.
 
 This project came from a very familiar student failure mode: "my calendar says deep work, but my behavior says drift." We wanted to build something that makes that gap visible without making people feel punished for being human.
 
@@ -39,11 +39,11 @@ In practice, students do not need another planning interface. They need a bridge
 - what they actually did,
 - and what their peers can see.
 
-CompCal focuses on that bridge.
+Calenduel focuses on that bridge.
 
 ## The Solution
 
-CompCal is a calendar-first accountability experience:
+Calenduel is a calendar-first accountability experience:
 
 1. Pick a study block from your day.
 2. Start a mountain session (solo or with a buddy commitment).
@@ -68,26 +68,30 @@ This gives users an emotional read of progress at a glance that plain timers and
 - Calendar -> Mountain -> Summit -> Profile flow.
 - Session timer with check-in, pause/resume, and completion transitions.
 - Buddy commitment state and post-session visibility.
-- Session outcomes and weekly summaries saved in app state.
-- Friends invite/list APIs with Google sign-in based session cookies.
-- Google OAuth flow and Calendar-readonly scopes implemented in serverless API routes.
+- Session outcomes and weekly summaries saved in app state and persisted server-side via `/api/sessions/start` and `/api/sessions/end`.
+- Google OAuth login (`/api/auth/login`, `/api/auth/callback`, `/api/auth/logout`) with HTTP-only session cookies and AES-256-GCM encrypted refresh tokens at rest.
+- Real Google Calendar event fetch through a server-side proxy (`/api/calendar/events`) that uses cached/refreshed access tokens, plus a manual override endpoint (`/api/calendar/override`).
+- Gemini-backed academic event classifier (`api/_lib/classify.ts`) that groups raw calendar titles into canonical subjects and persists the result.
+- Bidirectional friend system: invite/join links, incoming requests, accept/decline, remove, and revoke (`/api/friends/invite|join|incoming|respond|remove|revoke|list`).
+- User profile preferences endpoint (`/api/profile/preferences`).
 - Focus-check UX controls (enable/disable checks, low-pressure mode, trust messaging).
+- In-browser MediaPipe FaceLandmarker tracker (`frontend/src/lib/use-face-tracker.ts`) detecting eyes-closed and head-turned distraction signals at ~10 fps.
 - Hybrid roast pipeline:
-  - auto-trigger roast generation from session context (`/api/roast`),
+  - auto-trigger roast generation from session context (`/api/roast`, Anthropic with deterministic fallback),
   - friend-throw delivery over BroadcastChannel for two-tab demo reliability,
   - Postgres-backed throw persistence and inbox polling (`/api/roasts/throw`, `/api/roasts/inbox`).
 - Shared mountain rendering with multi-climber trail markers and throw projectile feedback.
+- Idempotent SQL migrations under `migrations/` (001 base schema through 004 friend system polish).
 
 ### Prototype / In Progress
 
-- Frontend calendar screen still uses fixture data as default for event rendering.
-- Focus checks in the current mountain UX are simulated outcomes (no frontend webcam capture wiring yet).
-- `api/check-focus` (Anthropic vision scoring) exists, but not fully wired into the main frontend session loop.
-- Python FastAPI + MediaPipe eye-tracking WebSocket backend exists separately and is not fully integrated into the frontend flow yet.
+- `api/check-focus` runs server-side Gemini vision scoring on captured webcam frames and returns `score | reason`. It is reachable but not yet the primary check trigger inside the mountain session loop.
+- Browser FaceLandmarker signals are captured but not yet merged with the server vision score into a single confidence model.
+- Python FastAPI + MediaPipe eye-tracking WebSocket backend exists as a legacy prototype and is no longer the active client path: the in-browser tracker is preferred.
 
 ### Honest status summary
 
-CompCal today is strongest as:
+Calenduel today is strongest as:
 
 - a complete interaction loop for commitment tracking,
 - a social accountability experience,
@@ -129,6 +133,8 @@ flowchart LR
 
   subgraph serverless [Vercel Functions]
     Auth["/api/auth/*"]
+    CalendarApi["/api/calendar/*"]
+    ProfileApi["/api/profile/preferences"]
     FriendsApi["/api/friends/*"]
     SessionsApi["/api/sessions/*"]
     FocusApi["/api/check-focus"]
@@ -138,60 +144,81 @@ flowchart LR
   end
 
   subgraph data [Storage]
-    VercelPostgres[(Vercel Postgres)]
+    NeonPg[(Neon Postgres)]
     LocalState[(Local browser state)]
   end
 
-  subgraph cv [CV Backend Prototype]
-    EyeServer["backend/server.py (FastAPI WS)"]
+  subgraph cv [CV]
+    Tracker["FaceLandmarker (browser)"]
+    EyeServer["backend/server.py (legacy FastAPI WS)"]
   end
 
+  Calendar --> CalendarApi
+  CalendarApi --> Auth
   Calendar --> Mountain --> Summit --> Profile
+  Profile --> ProfileApi
   Friends --> FriendsApi
-  Calendar --> Auth
   Mountain --> SessionsApi
   Mountain --> RoastApi
   Mountain --> RoastThrowApi
   Mountain --> RoastInboxApi
-  SessionsApi --> VercelPostgres
-  FriendsApi --> VercelPostgres
-  RoastThrowApi --> VercelPostgres
-  RoastInboxApi --> VercelPostgres
+  Mountain --> Tracker
+  SessionsApi --> NeonPg
+  FriendsApi --> NeonPg
+  CalendarApi --> NeonPg
+  ProfileApi --> NeonPg
+  RoastThrowApi --> NeonPg
+  RoastInboxApi --> NeonPg
+  Auth --> NeonPg
   Mountain --> LocalState
   FocusApi -.in progress wiring.-> Mountain
-  EyeServer -.separate prototype.-> Mountain
+  EyeServer -.legacy prototype.-> Mountain
 ```
 
 ## Tech Stack
 
 - Frontend: React, TypeScript, Vite, Tailwind CSS
+- Browser CV: MediaPipe FaceLandmarker via `@mediapipe/tasks-vision` (eye-aspect-ratio + head pose, runs client-side)
 - Serverless API: Vercel Functions (`@vercel/node`)
-- Data: Vercel Postgres (`@vercel/postgres`)
-- Auth/Calendar: Google OAuth + Google Calendar API (readonly scope)
-- Vision API route: Anthropic SDK (`@anthropic-ai/sdk`)
-- CV backend prototype: Python, FastAPI, MediaPipe, OpenCV
+- Data: Postgres accessed through `@vercel/postgres` (Neon free tier in production, local Docker for development)
+- Auth/Calendar: Google OAuth + Google Calendar API (readonly scope), refresh tokens encrypted at rest with AES-256-GCM
+- Vision API route: Google Gemini via `@google/generative-ai` (`/api/check-focus`)
+- Roast generation: Anthropic SDK (`@anthropic-ai/sdk`), optional with a deterministic fallback when no key is set
+- CV backend (legacy prototype): Python, FastAPI, MediaPipe, OpenCV
 
 ## Vercel Implementation Details
 
-Vercel is the backbone of the deployed web stack in this project: the frontend is built and served as a Vite app, and backend behavior is implemented through serverless routes under `api/` (auth, friends, sessions, and focus scoring). In practice, this means Google OAuth login and callback handling run in Vercel Functions, session identity is stored via HTTP cookies set by those functions, and social/session endpoints read and write persistent state through `@vercel/postgres`. The focus-scoring endpoint (`/api/check-focus`) also runs as a Vercel function, so model calls happen server-side instead of exposing keys in the client. This gives us one deployment surface for UI + APIs while keeping room for the separate Python eye-tracking service as an optional parallel component.
+Vercel is the backbone of the deployed web stack: the frontend is built and served as a Vite app, and backend behavior is implemented through serverless routes under `api/` (auth, friends, sessions, focus scoring, and roasts). Google OAuth login and callback handling run in Vercel Functions, session identity is stored via HTTP cookies set by those functions, and social/session endpoints read and write persistent state through `@vercel/postgres`. Refresh tokens are encrypted at rest with AES-256-GCM before being stored. The focus-scoring endpoint (`/api/check-focus`) calls Gemini server-side so the API key never reaches the browser, and the roast endpoint (`/api/roast`) calls Anthropic server-side with a deterministic fallback when no key is configured. This gives us one deployment surface for UI and APIs while keeping room for the legacy Python eye-tracking service as an optional parallel component.
 
-Primary Vercel environment variables used by this architecture:
+Primary environment variables used by this architecture (see `.env.example` for the full set):
 
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
-- `POSTGRES_URL` (and related Vercel Postgres connection vars)
-- `ANTHROPIC_API_KEY`
-- `VERCEL_URL` / `VERCEL_PROJECT_PRODUCTION_URL` (used for callback/base URL handling)
+- `POSTGRES_URL`: Postgres connection string (Neon in production, local Docker for dev)
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google OAuth + Calendar readonly scope
+- `GEMINI_API_KEY`: required for `/api/check-focus` and the academic-event classifier
+- `ANTHROPIC_API_KEY`: optional, only needed for richer `/api/roast` outputs
+- `REFRESH_TOKEN_KEY`: 32-byte hex key for AES-256-GCM encryption of stored refresh tokens (generate with `openssl rand -hex 32`)
+- `VERCEL_URL` / `VERCEL_PROJECT_PRODUCTION_URL`: used for OAuth callback and base URL handling
 
 ## Repo Structure
 
 ```text
 .
-├── api/                    # Vercel serverless endpoints (auth, friends, sessions, focus)
+├── api/                    # Vercel serverless endpoints
+│   ├── auth/               # Google OAuth login, callback, logout
+│   ├── calendar/           # Server-side Calendar event proxy and overrides
+│   ├── friends/            # Invite, join, incoming, respond, remove, revoke, list
+│   ├── profile/            # User preferences
+│   ├── sessions/           # Session start/end persistence
+│   ├── roasts/             # Friend-throw delivery and inbox
+│   ├── check-focus.ts      # Gemini vision focus scoring
+│   ├── roast.ts            # Anthropic roast generator with deterministic fallback
+│   └── _lib/               # cookies, db, session, crypto, google-token, classify
 ├── frontend/               # React + Vite app
 │   ├── docs/               # Demo, focus checks, calendar integration notes
-│   └── src/
-├── backend/                # Python FastAPI eye-tracking websocket prototype
+│   └── src/                # Includes lib/use-face-tracker.ts (MediaPipe browser tracker)
+├── backend/                # Legacy Python FastAPI eye-tracking WebSocket prototype
+├── migrations/             # Idempotent SQL migrations (001 through 004)
+├── pitch-deck/             # Static pitch deck and renderer
 └── package.json            # Root deps used by /api routes
 ```
 
@@ -238,32 +265,17 @@ WebSocket endpoint: `ws://localhost:8000/ws`
 
 ## Environment Notes
 
-For full API functionality, configure environment variables for:
+Copy `.env.example` to `.env.local` and fill in:
 
-- Google OAuth (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`)
-- Database connection used by `@vercel/postgres`
-- Anthropic API key (for `/api/check-focus`)
+- `POSTGRES_URL` (Neon connection string in production, local Docker for dev)
+- Google OAuth (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) with redirect URI `http://localhost:3000/api/auth/callback`
+- `GEMINI_API_KEY` (required for `/api/check-focus` and the academic classifier in `api/_lib/classify.ts`)
+- `ANTHROPIC_API_KEY` (optional, only needed for richer `/api/roast` outputs; unset uses the deterministic fallback)
+- `REFRESH_TOKEN_KEY` (32-byte hex, generate with `openssl rand -hex 32`)
 
-## Postgres note for roast events
+## Database migrations
 
-The friend-throw flow persists roast delivery events in `roast_events`. If your local or hosted database does not include this table yet, apply this SQL:
-
-```sql
-CREATE TABLE IF NOT EXISTS roast_events (
-  id BIGSERIAL PRIMARY KEY,
-  from_user_id TEXT NOT NULL,
-  from_name TEXT,
-  to_user_id TEXT NOT NULL,
-  to_name TEXT,
-  session_id TEXT,
-  roast_text TEXT NOT NULL,
-  trigger_source TEXT NOT NULL DEFAULT 'friend_throw',
-  is_read BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-
-If these are missing locally, you can still run the frontend prototype flows.
+Apply the SQL files in `migrations/` in order: 001 base schema (users, friendships, sessions), 002 refresh-token storage and event classifications, 003 auth sessions, 004 friend system polish. All files are idempotent (`CREATE TABLE IF NOT EXISTS`), so re-running is safe. The `roast_events` table used by the friend-throw flow is auto-created on first insert by `/api/roasts/throw` and `/api/roasts/inbox`.
 
 ## Demo and Docs
 
@@ -289,25 +301,17 @@ Focus verification features can become surveillance if poorly framed. We treated
 
 ## Why This Matters (Education + Social Good)
 
-CompCal is designed for students who need support for consistency, not punishment. The product emphasizes transparent controls, optional low-pressure mode, and social accountability that encourages recovery after drift instead of shame.
+Calenduel is designed for students who need support for consistency, not punishment. The product emphasizes transparent controls, optional low-pressure mode, and social accountability that encourages recovery after drift instead of shame.
 
 We care about this problem because we are inside the target user group: students balancing heavy workloads, fragmented attention, and social pressure. The goal is not to optimize for "max productivity." The goal is to help more people keep one meaningful commitment each day.
 
 ## Roadmap
 
-- Wire real Google Calendar event data directly into the primary session loop.
-- Connect `/api/check-focus` to live mountain-session checks.
-- Integrate MediaPipe WebSocket signals into the same focus pipeline.
-- Move more prototype local persistence to unified backend persistence.
+- Trigger `/api/check-focus` from live mountain-session checks instead of out-of-band test calls.
+- Merge browser FaceLandmarker presence signals with the server vision score into a single confidence model.
+- Move remaining local-only session state to unified backend persistence with local storage as a fallback.
 - Expand multiplayer mountain states and cohort-based accountability modes.
-
-## Near-Term Execution Plan
-
-1. Replace fixture-first calendar rendering with authenticated real-event hydration.
-2. Add a stable focus-check scheduler contract between frontend session state and `/api/check-focus`.
-3. Introduce a merged confidence model that combines periodic vision checks with eye-tracking presence events.
-4. Persist all session outcomes server-side and keep local storage as resilience/fallback only.
-5. Add reliability instrumentation (request errors, auth expiry, session drop-off points) before broader rollout.
+- Add reliability instrumentation (request errors, auth expiry, session drop-off points) before broader rollout.
 
 ## Team
 
