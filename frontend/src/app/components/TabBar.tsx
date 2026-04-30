@@ -1,11 +1,11 @@
 import { useNavigate, useLocation } from "react-router";
-import { CalendarDays, Mountain, Users, UserRound } from "lucide-react";
+import { CalendarDays, Users, UserRound } from "lucide-react";
 
 export function TabBar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  /** Four tabs: primary destinations + profile anchored bottom-right (app shell). */
+  /** Primary destinations. Mountain is contextual — entered from a Calendar event, not a tab. */
   const tabs = [
     {
       id: "calendar",
@@ -13,13 +13,6 @@ export function TabBar() {
       icon: CalendarDays,
       path: "/calendar",
       match: (p: string) => p === "/calendar" || p === "/",
-    },
-    {
-      id: "mountain",
-      label: "Mountain",
-      icon: Mountain,
-      path: "/mountain/active",
-      match: (p: string) => p.includes("/mountain"),
     },
     {
       id: "friends",
