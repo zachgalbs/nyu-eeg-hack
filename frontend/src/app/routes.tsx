@@ -4,6 +4,7 @@ import { IndexRoute } from "./components/IndexRoute";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { CalendarScreen } from "./components/CalendarScreen";
 import { MountainScreen } from "./components/MountainScreen";
+import { MountainLandingScreen } from "./components/MountainLandingScreen";
 import { SummitScreen } from "./components/SummitScreen";
 import { FriendsScreen } from "./components/FriendsScreen";
 import { ProfileScreen } from "./components/ProfileScreen";
@@ -20,6 +21,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: IndexRoute },
       { path: "calendar", Component: CalendarScreen },
+      { path: "mountain", Component: MountainLandingScreen },
       { path: "mountain/:eventId", Component: MountainScreen },
       { path: "summit/:eventId", Component: SummitScreen },
       { path: "friends", Component: FriendsScreen },
