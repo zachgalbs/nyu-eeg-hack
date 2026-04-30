@@ -27,6 +27,15 @@ async function ensureRoastTable() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const action = String(req.query.action ?? '');
+  switch (action) {
+    case 'throw': return handleThrow(req, res);
+    case 'inbox': return handleInbox(req, res);
+    default: return res.status(404).json({ error: 'Unknown action' });
+  }
+}
+
+async function handleThrow(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const fromUserId = await getUserIdFromRequest(req);
@@ -37,8 +46,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing toUserId or roastText' });
   }
 
-  // Authorization: only roast accepted friends. Without this check, any
-  // authenticated user could roast any other user (harassment vector).
   const friendCheck = await sql`
     SELECT 1 FROM friendships
     WHERE status = 'accepted'
@@ -50,8 +57,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Not friends with target user' });
   }
 
-  // FS-9: per-user roast opt-out. Default true preserves existing behaviour;
-  // anyone who toggles allow_roasts=false in their profile cannot be roasted.
   const optCheck = await sql`
     SELECT allow_roasts FROM users WHERE user_id = ${body.toUserId} LIMIT 1
   `;
@@ -59,8 +64,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(403).json({ error: 'Recipient does not accept roasts' });
   }
 
-  // Authenticate the display names from the DB. The client used to be able
-  // to set arbitrary `fromName` / `toName` in the body — that's spoofable.
   const namesQuery = await sql`
     SELECT user_id, name FROM users
     WHERE user_id = ${fromUserId} OR user_id = ${body.toUserId}
@@ -91,5 +94,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error('[roasts/throw]', error);
     return res.status(500).json({ error: 'Failed to persist roast throw event' });
+  }
+}
+
+async function handleInbox(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) return res.status(401).json({ error: 'Authentication required' });
+
+  const limit = Math.min(25, Math.max(1, Number(req.query.limit || 10)));
+  const ack = req.query.ack === 'true' || req.query.ack === '1';
+
+  try {
+    await ensureRoastTable();
+    const events = await sql`
+      SELECT id, from_user_id, from_name, to_user_id, to_name, session_id, roast_text, trigger_source, is_read, created_at
+      FROM roast_events
+      WHERE to_user_id = ${userId} AND is_read = FALSE
+      ORDER BY created_at ASC
+      LIMIT ${limit}
+    `;
+
+    if (ack && events.rows.length > 0) {
+      const ids = events.rows.map((row) => row.id);
+      await sql`
+        UPDATE roast_events
+        SET is_read = TRUE
+        WHERE id = ANY(${ids as any}::bigint[])
+      `;
+    }
+
+    return res.json({ events: events.rows, acked: ack });
+  } catch (error) {
+    console.error('[roasts/inbox]', error);
+    return res.status(500).json({ error: 'Failed to fetch roast inbox' });
   }
 }
