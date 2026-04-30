@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { sql } from '../_lib/db';
 import { getUserIdFromRequest } from '../_lib/session';
 import { getValidAccessToken, TokenRefreshError } from '../_lib/google-token';
 import { classifyTitles, normalizeTitle } from '../_lib/classify';
@@ -10,13 +11,16 @@ interface GoogleEvent {
   end: { dateTime?: string; date?: string };
 }
 
-/**
- * Server-side proxy: fetches events from Google using a cached/refreshed
- * access token (kept server-side), then attaches academic classification.
- *
- * GET /api/calendar/events?from=ISO&to=ISO
- */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const action = String(req.query.action ?? '');
+  switch (action) {
+    case 'events': return handleEvents(req, res);
+    case 'override': return handleOverride(req, res);
+    default: return res.status(404).json({ error: 'Unknown action' });
+  }
+}
+
+async function handleEvents(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).end();
 
   const userId = await getUserIdFromRequest(req);
@@ -81,4 +85,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   res.json({ events });
+}
+
+async function handleOverride(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  const userId = await getUserIdFromRequest(req);
+  if (!userId) return res.status(401).json({ error: 'Not signed in' });
+
+  const { title, isAcademic, subject } = req.body ?? {};
+  if (typeof title !== 'string' || typeof isAcademic !== 'boolean') {
+    return res.status(400).json({ error: 'Bad payload' });
+  }
+  const norm = normalizeTitle(title);
+  if (!norm) return res.status(400).json({ error: 'Empty title' });
+
+  await sql`
+    INSERT INTO event_classification_overrides (user_id, title_norm, is_academic, subject, updated_at)
+    VALUES (${userId}, ${norm}, ${isAcademic}, ${subject ?? null}, NOW())
+    ON CONFLICT (user_id, title_norm) DO UPDATE
+      SET is_academic = EXCLUDED.is_academic,
+          subject = EXCLUDED.subject,
+          updated_at = NOW()
+  `;
+
+  res.json({ ok: true });
 }

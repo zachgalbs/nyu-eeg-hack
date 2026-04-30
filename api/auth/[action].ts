@@ -1,21 +1,71 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import crypto from 'crypto'
 import { sql } from '../_lib/db'
 import { parseCookie } from '../_lib/cookies'
 import { encryptSecret } from '../_lib/crypto'
 import {
   createSession,
+  destroySession,
   buildSessionCookie,
+  buildClearedSessionCookie,
   SESSION_TTL_SECONDS,
 } from '../_lib/session'
 
 const CSRF_COOKIE = 'oauth_csrf'
+const CSRF_TTL_SECONDS = 600
+
+function getBase() {
+  return process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000'
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const action = String(req.query.action ?? '')
+  switch (action) {
+    case 'login': return handleLogin(req, res)
+    case 'callback': return handleCallback(req, res)
+    case 'logout': return handleLogout(req, res)
+    default: return res.status(404).json({ error: 'Unknown action' })
+  }
+}
+
+function handleLogin(req: VercelRequest, res: VercelResponse) {
+  const base = getBase()
+
+  const csrfNonce = crypto.randomBytes(16).toString('hex')
+  const inviteToken = req.query.invite_token as string | undefined
+
+  const stateData = JSON.stringify({ csrf: csrfNonce, invite: inviteToken ?? null })
+  const state = Buffer.from(stateData, 'utf8').toString('base64url')
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID!,
+    redirect_uri: `${base}/api/auth/callback`,
+    response_type: 'code',
+    scope: [
+      'https://www.googleapis.com/auth/calendar.readonly',
+      'openid',
+      'email',
+      'profile',
+    ].join(' '),
+    access_type: 'offline',
+    prompt: 'consent',
+    state,
+  })
+
+  res.setHeader('Set-Cookie', [
+    `${CSRF_COOKIE}=${csrfNonce}; Path=/api/auth; Max-Age=${CSRF_TTL_SECONDS}; HttpOnly; Secure; SameSite=Lax`,
+  ])
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
+}
+
+async function handleCallback(req: VercelRequest, res: VercelResponse) {
   const { code, state } = req.query
   if (!code) return res.status(400).json({ error: 'Missing code' })
 
-  // CSRF check — the nonce in `state` must match the nonce in the
-  // short-lived cookie set during /api/auth/login.
   const expectedCsrf = parseCookie(req, CSRF_COOKIE)
   let csrfFromState: string | null = null
   let inviteToken: string | null = null
@@ -32,11 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'OAuth CSRF check failed' })
   }
 
-  const base = process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : 'http://localhost:3000'
+  const base = getBase()
 
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -62,8 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const accessExpiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000)
 
-  // Encrypt the refresh token before persisting. A read-only DB compromise
-  // no longer hands the attacker every user's calendar.
   const encryptedRefresh = tokens.refresh_token
     ? encryptSecret(tokens.refresh_token)
     : null
@@ -86,9 +130,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           google_token_expires_at = EXCLUDED.google_token_expires_at
   `
 
-  // Mark the invite as claimed (NOT accepted): the inviter still has to
-  // confirm via /api/friends/respond. This closes the "anyone with a stale
-  // link is automatically a friend" hole. Expired tokens are ignored.
   if (inviteToken) {
     await sql`
       UPDATE friendships
@@ -100,9 +141,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     `
   }
 
-  // Mint an opaque server-side session. The cookie holds only the random
-  // session_id; user_id lives in auth_sessions. Editing the cookie just
-  // invalidates the session — it does NOT let an attacker pose as anyone.
   const sessionId = await createSession(user.id, {
     userAgent: req.headers['user-agent'] ?? null,
     ip:
@@ -113,14 +151,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   res.setHeader('Set-Cookie', [
     buildSessionCookie(sessionId, SESSION_TTL_SECONDS),
-    // user_name is JS-readable for the frontend's display logic. Secure +
-    // SameSite=Lax. NOT HttpOnly because the client reads it. Non-sensitive.
     `user_name=${encodeURIComponent(user.name)}; Path=/; Max-Age=${SESSION_TTL_SECONDS}; Secure; SameSite=Lax`,
-    // Clear legacy cookies from older sessions.
     `user_id=; Path=/; Max-Age=0; SameSite=Lax`,
     `google_token=; Path=/; Max-Age=0; SameSite=Lax`,
     `${CSRF_COOKIE}=; Path=/api/auth; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
   ])
 
   res.redirect(inviteToken ? '/friends' : '/')
+}
+
+async function handleLogout(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST' && req.method !== 'GET') return res.status(405).end()
+
+  await destroySession(req)
+
+  res.setHeader('Set-Cookie', [
+    buildClearedSessionCookie(),
+    `user_name=; Path=/; Max-Age=0; Secure; SameSite=Lax`,
+  ])
+
+  if (req.method === 'GET') {
+    return res.redirect('/')
+  }
+  res.json({ ok: true })
 }
