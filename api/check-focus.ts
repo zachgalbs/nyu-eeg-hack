@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI, type Part } from '@google/generative-ai'
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
@@ -34,7 +34,7 @@ Your response (number | reason):`
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    const imageParts: object[] = [
+    const imageParts: Part[] = [
       { inlineData: { data: imageBase64, mimeType: 'image/jpeg' } },
     ]
     if (imageBase64b) {
