@@ -6,17 +6,22 @@ import {
   HandHeart,
   LogOut,
   X,
+  Music,
+  Camera,
+  CameraOff,
 } from "lucide-react";
 import { MountainSVG } from "./MountainSVG";
 import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
+import { MusicPicker } from "./MusicPicker";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
 import { isSignedIn } from "../../lib/auth";
 import {
   getBuddyCommitment,
   saveSessionOutcome,
 } from "../../lib/compcal-state";
+import { focusAudioPause } from "../../lib/use-focus-audio";
 import { type FriendPresence } from "../../lib/friends-presence";
 import {
   getTabIdentity,
@@ -155,6 +160,8 @@ function ActiveMountainScreen() {
     baseElapsed?: number;
     resumedAt?: number | null;
     isPaused?: boolean;
+    cameraEnabled?: boolean;
+    effectiveElapsed?: number;
   } | null>(() => {
     try {
       const raw = localStorage.getItem(`eeg_timer_${eventKey}`);
@@ -182,6 +189,13 @@ function ActiveMountainScreen() {
   const [checkedInAt, setCheckedInAt] = useState<Date | null>(
     savedTimer?.checkedInAt ? new Date(savedTimer.checkedInAt) : null
   );
+  // Default camera off: explicit user opt-in matches the "camera on climbs faster" affordance.
+  const [cameraEnabled, setCameraEnabled] = useState<boolean>(savedTimer?.cameraEnabled ?? false);
+  const [musicPickerOpen, setMusicPickerOpen] = useState(false);
+  // effectiveElapsed accumulates real seconds × camera multiplier (1.0 on, 0.5 off).
+  // Drives cat progress + commitment outcome; not the visible timer.
+  const effectiveElapsedRef = useRef<number>(savedTimer?.effectiveElapsed ?? 0);
+  const cameraEnabledAccumRef = useRef<{ on: number; off: number }>({ on: 0, off: 0 });
   const [progress, setProgress] = useState(0);
   const [focusScore, setFocusScore] = useState(97);
   const [lastCheck, setLastCheck] = useState<'verified' | 'distracted' | 'error'>('verified');
@@ -372,8 +386,16 @@ function ActiveMountainScreen() {
         Math.floor(baseElapsedRef.current + (Date.now() - resumedAtRef.current!) / 1000)
       );
 
+    let lastElapsed = elapsedSecondsRef.current;
     const tick = () => {
       const elapsed = getElapsed();
+      const delta = Math.max(0, elapsed - lastElapsed);
+      lastElapsed = elapsed;
+      // Accumulate camera-weighted effective time; cat speed = camera on ? 1x : 0.5x.
+      const multiplier = cameraEnabled ? 1.0 : 0.5;
+      effectiveElapsedRef.current = Math.min(totalSeconds, effectiveElapsedRef.current + delta * multiplier);
+      if (cameraEnabled) cameraEnabledAccumRef.current.on += delta;
+      else cameraEnabledAccumRef.current.off += delta;
       setElapsedSeconds(elapsed);
       elapsedSecondsRef.current = elapsed;
     };
@@ -389,7 +411,7 @@ function ActiveMountainScreen() {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [totalSeconds, isPaused, hasCheckedIn]);
+  }, [totalSeconds, isPaused, hasCheckedIn, cameraEnabled]);
 
   // Persist timer state every second so a page refresh can resume seamlessly
   useEffect(() => {
@@ -401,11 +423,13 @@ function ActiveMountainScreen() {
         baseElapsed: baseElapsedRef.current,
         resumedAt: resumedAtRef.current,
         isPaused,
+        cameraEnabled,
+        effectiveElapsed: effectiveElapsedRef.current,
       }));
     } catch {}
   // elapsedSeconds triggers this every second while the session is running
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey, hasCheckedIn, checkedInAt, isPaused, elapsedSeconds]);
+  }, [storageKey, hasCheckedIn, checkedInAt, isPaused, elapsedSeconds, cameraEnabled]);
 
   useEffect(() => {
     setProgress(Math.min(100, (elapsedSeconds / totalSeconds) * 100));

@@ -11,7 +11,12 @@ export type SessionOutcome = {
   eventId: string;
   eventTitle: string;
   plannedMinutes: number;
+  /** Real wall-clock minutes the user spent in non-paused state. */
   completedMinutes: number;
+  /** Camera-weighted minutes (1x with camera on, 0.5x off). Drives commitment + cat summit. */
+  effectiveMinutes?: number;
+  /** Whether the camera was on for the majority of the session. */
+  cameraEnabled?: boolean;
   focusScore: number;
   distractedChecks: number;
   keptCommitment: boolean;
@@ -126,28 +131,64 @@ export function getDailyCommitmentSummary(): {
 export function getWeeklyCommitmentSummary(): {
   completedSessions: number;
   keptCommitments: number;
-  avgFocusScore: number;
+  avgClimbPct: number;
   totalFocusedMinutes: number;
+  /** 7-element array Mon..Sun. Each value is a 0-100 share of that day's focused minutes
+   *  against the busiest day's minutes. Empty array when no sessions exist. */
   points: number[];
 } {
   const all = getSessionOutcomes();
-  const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const cutoff = Date.now() - weekMs;
-  const recent = all.filter((s) => new Date(s.completedAt).getTime() >= cutoff);
+  // Anchor to Monday of this week so days line up with the bars rendered in Profile.
+  const now = new Date();
+  const mondayStart = new Date(now);
+  const dayIdx = (mondayStart.getDay() + 6) % 7; // 0 = Monday
+  mondayStart.setDate(mondayStart.getDate() - dayIdx);
+  mondayStart.setHours(0, 0, 0, 0);
+  const sundayEnd = mondayStart.getTime() + 7 * 24 * 60 * 60 * 1000;
+
+  const recent = all.filter((s) => {
+    const t = new Date(s.completedAt).getTime();
+    return t >= mondayStart.getTime() && t < sundayEnd;
+  });
+
+  if (recent.length === 0) {
+    return {
+      completedSessions: 0,
+      keptCommitments: 0,
+      avgClimbPct: 0,
+      totalFocusedMinutes: 0,
+      points: [],
+    };
+  }
+
   const totalFocusedMinutes = recent.reduce((sum, s) => sum + s.completedMinutes, 0);
   const keptCommitments = recent.filter((s) => s.keptCommitment).length;
-  const avgFocusScore = recent.length
-    ? Math.round(recent.reduce((sum, s) => sum + s.focusScore, 0) / recent.length)
-    : 0;
-  const points = recent
-    .slice()
-    .reverse()
-    .map((s) => Math.max(8, Math.min(100, Math.round((s.completedMinutes / Math.max(1, s.plannedMinutes)) * 100))));
+
+  // Per-session climb % uses effective minutes when present so camera-off sessions
+  // visibly shrink. Falls back to completed/planned for older records.
+  const climbPcts = recent.map((s) => {
+    const numerator = typeof s.effectiveMinutes === "number" ? s.effectiveMinutes : s.completedMinutes;
+    return Math.max(0, Math.min(100, (numerator / Math.max(1, s.plannedMinutes)) * 100));
+  });
+  const avgClimbPct = Math.round(climbPcts.reduce((a, b) => a + b, 0) / climbPcts.length);
+
+  // Per-day buckets, Mon..Sun. Sum focused minutes per day, normalize against the busiest day.
+  const buckets = Array.from({ length: 7 }, () => 0);
+  for (const s of recent) {
+    const t = new Date(s.completedAt);
+    const idx = (t.getDay() + 6) % 7;
+    buckets[idx] += s.completedMinutes;
+  }
+  const max = Math.max(...buckets);
+  const points = max > 0
+    ? buckets.map((m) => (m === 0 ? 0 : Math.max(8, Math.round((m / max) * 100))))
+    : [];
+
   return {
     completedSessions: recent.length,
     keptCommitments,
-    avgFocusScore,
+    avgClimbPct,
     totalFocusedMinutes,
-    points: points.slice(-7),
+    points,
   };
 }
