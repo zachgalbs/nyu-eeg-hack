@@ -12,6 +12,7 @@ import { ClimberAvatar } from "./ClimberAvatar";
 import { FocusCheckToast } from "./FocusCheckToast";
 import { RoastModal } from "./RoastModal";
 import { SNOW_MOUNTAIN_RETRO_THEME_SRC } from "../../lib/theme-asset";
+import { isSignedIn } from "../../lib/auth";
 import {
   getBuddyCommitment,
   saveSessionOutcome,
@@ -78,6 +79,61 @@ function formatLastSeen(iso: string | null | undefined): string {
 }
 
 export function MountainScreen() {
+  const { eventId } = useParams();
+  if (!eventId) return <IdleMountainPreview />;
+  return <ActiveMountainScreen />;
+}
+
+function IdleMountainPreview() {
+  const navigate = useNavigate();
+  const signedIn = isSignedIn();
+  return (
+    <div className="px-4 pb-6 pt-10 sm:px-6">
+      <header className="mb-6">
+        <h1 className="mb-1 text-ink" style={{ fontFamily: "var(--font-serif)", fontSize: "32px" }}>
+          Mountain
+        </h1>
+      </header>
+
+      <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+        <MountainSVG progress={0} isPaused />
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border bg-card p-5 text-center">
+        {signedIn ? (
+          <>
+            <p className="mb-3 font-semibold text-ink" style={{ fontSize: "16px" }}>
+              Pick a study block to start climbing
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/calendar")}
+              className="rounded-full bg-primary px-5 py-2.5 text-primary-foreground transition-opacity hover:opacity-90"
+              style={{ fontWeight: 600 }}
+            >
+              Open Calendar
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="mb-3 font-semibold text-ink" style={{ fontSize: "16px" }}>
+              Connect Google Calendar to start climbing
+            </p>
+            <a
+              href="/api/auth/login"
+              className="inline-block rounded-full bg-primary px-5 py-2.5 text-primary-foreground transition-opacity hover:opacity-90"
+              style={{ fontWeight: 600 }}
+            >
+              Connect
+            </a>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActiveMountainScreen() {
   const { eventId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();

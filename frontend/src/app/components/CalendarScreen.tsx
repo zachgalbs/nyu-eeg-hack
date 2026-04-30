@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { addDays, format, isSameDay, startOfDay, startOfWeek } from 'date-fns';
 import { eventsForDay, coClimbingNames, type CalendarEvent } from '../../data/calendarFixtures';
-import { getDailyCommitmentSummary, setBuddyCommitment } from '../../lib/compcal-state';
+import { setBuddyCommitment } from '../../lib/compcal-state';
 import { isSignedIn } from '../../lib/auth';
 import {
   fetchMyEventsThisWeek,
@@ -79,11 +79,6 @@ export function CalendarScreen() {
   const otherMine = mine.filter((e) => !e.isAcademic);
   const others = dayEvents.filter((e) => e.ownerId !== 'me');
 
-  const daily = useMemo(() => getDailyCommitmentSummary(), []);
-  const plannedTodayMinutes = useMemo(
-    () => academicMine.reduce((sum, e) => sum + durationMinutes(e), 0),
-    [academicMine],
-  );
   const buddyOptions = useMemo(() => {
     const map = new Map<string, string>();
     for (const e of others) {
@@ -202,26 +197,6 @@ export function CalendarScreen() {
       </header>
 
       {authBanner}
-
-      <section className="mb-6 rounded-2xl border border-border bg-card/85 p-4 sm:p-5">
-        <p className="mb-3 text-[11px] uppercase tracking-wide text-warm-gray">Study load</p>
-        <div className="grid gap-2 sm:grid-cols-3">
-          <div className="rounded-xl border border-border bg-background-solid/50 p-3">
-            <p className="text-[11px] text-warm-gray">Academic planned</p>
-            <p className="text-lg font-semibold text-ink">{plannedTodayMinutes}m</p>
-          </div>
-          <div className="rounded-xl border border-border bg-background-solid/50 p-3">
-            <p className="text-[11px] text-warm-gray">Focused today</p>
-            <p className="text-lg font-semibold text-ink">
-              {Math.floor(daily.totalFocusedMinutes / 60)}h {daily.totalFocusedMinutes % 60}m
-            </p>
-          </div>
-          <div className="rounded-xl border border-border bg-background-solid/50 p-3">
-            <p className="text-[11px] text-warm-gray">Sessions today</p>
-            <p className="text-lg font-semibold text-ink">{daily.completedSessions}</p>
-          </div>
-        </div>
-      </section>
 
       {/* List / Subjects toggle */}
       <div className="mb-4 flex gap-2">

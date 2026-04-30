@@ -20,6 +20,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: IndexRoute },
       { path: "calendar", Component: CalendarScreen },
+      { path: "mountain", Component: MountainScreen },
       { path: "mountain/:eventId", Component: MountainScreen },
       { path: "summit/:eventId", Component: SummitScreen },
       { path: "friends", Component: FriendsScreen },
