@@ -1,6 +1,6 @@
 # Calenduel
 
-climb mountains as a cat with your friends
+climb mountains as a cat with your friends.
 
 ## Story
 
