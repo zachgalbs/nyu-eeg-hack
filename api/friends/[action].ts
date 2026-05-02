@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import { sql } from '../_lib/db';
-import { getUserIdFromRequest } from '../_lib/session';
+import { requireUser } from '../_lib/session';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = String(req.query.action ?? '');
@@ -20,8 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleList(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { rows } = await sql`
     WITH friend_pairs AS (
@@ -88,8 +88,8 @@ async function handleList(req: VercelRequest, res: VercelResponse) {
 async function handleIncoming(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { rows: incomingRows } = await sql`
     SELECT f.id, f.claimed_at, u.user_id, u.name, u.avatar_url
@@ -146,8 +146,8 @@ const DEFAULT_TTL_DAYS = 7;
 async function handleInvite(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const raw = (req.body ?? {}).ttlDays;
   const ttlDays =
@@ -192,8 +192,8 @@ async function handleInvite(req: VercelRequest, res: VercelResponse) {
 async function handleJoin(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { token } = req.body ?? {};
   if (!token) return res.status(400).json({ error: 'Missing token' });
@@ -229,8 +229,8 @@ async function handleJoin(req: VercelRequest, res: VercelResponse) {
 async function handleRespond(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { friendshipId, action: respondAction } = req.body ?? {};
   if (!friendshipId || (respondAction !== 'accept' && respondAction !== 'decline')) {
@@ -268,8 +268,8 @@ async function handleRespond(req: VercelRequest, res: VercelResponse) {
 async function handleRevoke(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { friendshipId } = req.body ?? {};
   if (!friendshipId) return res.status(400).json({ error: 'Missing friendshipId' });
@@ -291,8 +291,8 @@ async function handleRevoke(req: VercelRequest, res: VercelResponse) {
 async function handleRemove(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { friendUserId } = req.body ?? {};
   if (!friendUserId || typeof friendUserId !== 'string') {

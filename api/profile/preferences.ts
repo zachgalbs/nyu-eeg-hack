@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { getUserIdFromRequest } from '../_lib/session';
+import { requireUser } from '../_lib/session';
 
 /**
  * Read or update user preferences. Currently surfaces:
@@ -10,8 +10,8 @@ import { getUserIdFromRequest } from '../_lib/session';
  * POST { allowRoasts?: boolean } -> updated record
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   if (req.method === 'GET') {
     const { rows } = await sql`

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '@vercel/postgres';
-import { getUserIdFromRequest } from '../_lib/session';
+import { requireUser } from '../_lib/session';
 
 type ThrowBody = {
   toUserId?: string;
@@ -38,8 +38,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleThrow(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const fromUserId = await getUserIdFromRequest(req);
-  if (!fromUserId) return res.status(401).json({ error: 'Authentication required' });
+  const fromUserId = await requireUser(req, res, 'Authentication required');
+  if (!fromUserId) return;
 
   const body = (req.body ?? {}) as ThrowBody;
   if (!body.toUserId || !body.roastText) {
@@ -100,8 +100,8 @@ async function handleThrow(req: VercelRequest, res: VercelResponse) {
 async function handleInbox(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Authentication required' });
+  const userId = await requireUser(req, res, 'Authentication required');
+  if (!userId) return;
 
   const limit = Math.min(25, Math.max(1, Number(req.query.limit || 10)));
   const ack = req.query.ack === 'true' || req.query.ack === '1';

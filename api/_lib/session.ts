@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import type { VercelRequest } from '@vercel/node';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from './db';
 import { parseCookie } from './cookies';
 
@@ -76,4 +76,33 @@ export function buildSessionCookie(sessionId: string, ttlSeconds = DEFAULT_TTL_S
 
 export function buildClearedSessionCookie(): string {
   return `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+}
+
+export function buildClearedUserNameCookie(): string {
+  return `user_name=; Path=/; Max-Age=0; Secure; SameSite=Lax`;
+}
+
+/**
+ * Auth guard for API handlers. Returns the userId on success; on failure,
+ * sends a 401 response AND clears the `session_id` and `user_name` cookies
+ * so the client UI (which gates "Connect Google Calendar" on the presence
+ * of `user_name`) re-renders correctly the next time the page loads.
+ *
+ * Usage:
+ *   const userId = await requireUser(req, res);
+ *   if (!userId) return;
+ */
+export async function requireUser(
+  req: VercelRequest,
+  res: VercelResponse,
+  message: string = 'Not signed in',
+): Promise<string | null> {
+  const userId = await getUserIdFromRequest(req);
+  if (userId) return userId;
+  res.setHeader('Set-Cookie', [
+    buildClearedSessionCookie(),
+    buildClearedUserNameCookie(),
+  ]);
+  res.status(401).json({ error: message });
+  return null;
 }

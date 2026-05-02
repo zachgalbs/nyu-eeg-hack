@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { getUserIdFromRequest } from '../_lib/session';
+import { requireUser } from '../_lib/session';
 import { getValidAccessToken, TokenRefreshError } from '../_lib/google-token';
 import { classifyTitles, normalizeTitle } from '../_lib/classify';
 
@@ -23,8 +23,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleEvents(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not signed in' });
+  const userId = await requireUser(req, res);
+  if (!userId) return;
 
   const from = (req.query.from as string) || new Date().toISOString();
   const to =
@@ -90,8 +90,8 @@ async function handleEvents(req: VercelRequest, res: VercelResponse) {
 async function handleOverride(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not signed in' });
+  const userId = await requireUser(req, res);
+  if (!userId) return;
 
   const { title, isAcademic, subject } = req.body ?? {};
   if (typeof title !== 'string' || typeof isAcademic !== 'boolean') {

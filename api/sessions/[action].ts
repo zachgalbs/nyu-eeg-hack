@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { sql } from '../_lib/db';
-import { getUserIdFromRequest } from '../_lib/session';
+import { requireUser } from '../_lib/session';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = String(req.query.action ?? '');
@@ -14,8 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 async function handleStart(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { eventTitle } = req.body ?? {};
   if (!eventTitle) return res.status(400).json({ error: 'Missing eventTitle' });
@@ -38,8 +38,8 @@ async function handleStart(req: VercelRequest, res: VercelResponse) {
 async function handleEnd(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const userId = await getUserIdFromRequest(req);
-  if (!userId) return res.status(401).json({ error: 'Not logged in' });
+  const userId = await requireUser(req, res, 'Not logged in');
+  if (!userId) return;
 
   const { sessionId, focusScore } = req.body ?? {};
   if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
