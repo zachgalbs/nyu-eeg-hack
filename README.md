@@ -22,11 +22,10 @@ Calenduel keeps you accountable through social pressure and focus detection.
 
 Here's the flow:
 
-1. Pick a study block from your day.
-2. Start a mountain session (solo or with a buddy commitment).
-3. Track session progress and periodic focus feedback.
+1. Pick a study block from your calendar.
+2. Climb for the duration of your event. Friends studying at the same time can see that you're studying, and can throw snowballs if you're off-task.
+3. Get periodic focus feedback from Gemini processing an image of your face every 2-3 minutes.
 4. End at Summit with outcome metrics (planned vs completed, focus score, kept commitment).
-5. View social context in Friends and weekly trend views in Profile.
 
 ### what you mean i'm climbing a mountain?
 
